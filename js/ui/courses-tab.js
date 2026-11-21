@@ -17,7 +17,7 @@ const GRAY = "#7F8C8D";
 export class CoursesTab {
   constructor(state) {
     this._state = state;
-    this._selectedId = null;
+    this._selectedId = sessionStorage.getItem("af_course") || null;
     this._refreshing = false;
     this._build();
     state.subscribe(() => this._refreshList());
@@ -101,6 +101,7 @@ export class CoursesTab {
   _onSelect() {
     if (this._refreshing) return;
     this._selectedId = this._coursesTable.selected;
+    sessionStorage.setItem("af_course", this._selectedId ?? "");
     this._showSelected();
   }
 

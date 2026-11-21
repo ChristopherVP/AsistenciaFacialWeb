@@ -71,17 +71,19 @@ export class MainWindow {
     });
     tabs.forEach(([title, content], index) => {
       const id = `pestana-${index}`;
-      buttons.push(h("button", { type: "button", class: "tab", role: "tab", id, "aria-controls": `${id}-panel`, onClick: () => select(index),
+      buttons.push(h("button", { type: "button", class: "tab", role: "tab", id, "aria-controls": `${id}-panel`, onClick: () => { sessionStorage.setItem("af_tab", String(index)); select(index); },
         onKeydown: (event) => {
           const move = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
           if (!move) return;
           const next = (index + move + tabs.length) % tabs.length;
+          sessionStorage.setItem("af_tab", String(next));
           select(next);
           buttons[next].focus();
         } }, title));
       panels.push(h("section", { class: "tab-panel", role: "tabpanel", id: `${id}-panel`, "aria-labelledby": id }, content));
     });
-    select(0);
+    const saved = Number(sessionStorage.getItem("af_tab"));
+    select(saved >= 0 && saved < tabs.length ? saved : 0);
     return h("main", { class: "notebook" }, h("div", { class: "tabs", role: "tablist" }, buttons), panels);
   }
 

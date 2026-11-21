@@ -12,43 +12,111 @@ const books = new BookRepository();
 const channel = globalThis.BroadcastChannel ? new BroadcastChannel("af-courses") : null;
 const $ = (id) => document.getElementById(id);
 const box = $("hoja"); const select = $("curso"); const status = $("estado");
-const past = []; const future = []; let active = null;
-let repository = null; let courses = []; let current = null; let book = null; let lastJson = ""; let busy = false; let menu = null;
+const past = []; const future = [];
+let repository = null; let courses = []; let current = null; let book = null; let lastJson = "";
+let menu = null; let editing = null; let dragging = null; let selMode = "cell"; let baseStatus = "";
+let grid = { cols: [], rows: [] }; let anchor = { c: 0, r: 1 }; let focus = { c: 0, r: 1 };
+
+document.head.append(h("style", {}, `
+  .sheet { user-select: none; -webkit-user-select: none; cursor: cell; }
+  .sheet td.sel { background: #DCE9F5 !important; outline: 0; }
+  .sheet td.head.sel { background: #2F6EA8 !important; }
+  .sheet td.cur:not(.head) { background: #fff !important; }
+  .sheet td.cur { outline: 2px solid #1E7B46 !important; outline-offset: -2px; }
+  .sheet th.hl { background: #CFE0F1 !important; font-weight: 700; }
+  .sheet td[contenteditable="true"] { user-select: text; -webkit-user-select: text; cursor: text; background: #fff !important; }
+  #hoja:focus { outline: 0; }`));
+box.tabIndex = 0;
+$("ocultar-col").after(h("button", { id: "ocultar-fila", type: "button" }, "🙈 Ocultar filas"));
+$("ocultar-col").textContent = "🙈 Ocultar columnas";
+$("col-borrar").textContent = "🗑 Eliminar columnas";
+$("fila-borrar").textContent = "🗑 Eliminar filas";
 
 const say = (message) => { status.textContent = message; };
+const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+const maxC = () => grid.cols.length - 1;
+const maxR = () => grid.rows.length; // fila 0 = encabezados
+const rowAt = (r) => (r === 0 ? null : grid.rows[r - 1]);
+const idAt = (r) => rowAt(r)?.id ?? "";
+const range = () => ({ c1: Math.min(anchor.c, focus.c), c2: Math.max(anchor.c, focus.c), r1: Math.min(anchor.r, focus.r), r2: Math.max(anchor.r, focus.r) });
+const tdAt = (c, r) => box.querySelector(`td[data-c="${c}"][data-r="${r}"]`);
+const editableAt = (c, r) => (r === 0 ? sheet.kindOf(book, grid.cols[c]) === "extra" : sheet.isEditable(book, grid.cols[c]));
+const textAt = (c, r) => (r === 0 ? sheet.titleOf(book, grid.cols[c]) : String(sheet.display(book, grid.cols[c], rowAt(r))));
+const rawAt = (c, r) => (r === 0 ? sheet.titleOf(book, grid.cols[c]) : sheet.rawOf(book, grid.cols[c], rowAt(r)));
+const cellRef = (c, r) => `${sheet.columnLetterOf(grid.cols[c])}${r === 0 ? 1 : book.rows.indexOf(rowAt(r)) + 2}`;
+const round2 = (n) => Math.round(n * 100) / 100;
+
+/* ---------- Volver al programa (siempre regresa) ---------- */
 
 function goBack() {
-  if (window.opener && !window.opener.closed) {
-    try { window.opener.focus(); } catch { /* el navegador puede negar el foco */ }
-    window.close();
-    setTimeout(() => { location.href = "./index.html"; }, 200); // solo si la pestaña no se pudo cerrar
-  } else {
-    location.href = "./index.html";
-  }
+  try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch { /* el navegador puede negar el foco */ }
+  window.close();
+  // Si el navegador no deja cerrar esta pestaña, se vuelve al programa en la misma pestaña (la sesión y la pestaña se restauran).
+  setTimeout(() => { location.href = "./index.html"; }, 300);
 }
 
+/* ---------- Dibujo ---------- */
+
 function render() {
-  closeMenu();
-  active = null; showActive();
+  closeMenu(); editing = null;
   $("deshacer").disabled = !past.length; $("rehacer").disabled = !future.length;
+  grid = { cols: [], rows: [] };
   if (!current) { box.replaceChildren(h("p", { class: "empty" }, "Aún no hay cursos. Cree uno en el programa.")); return; }
   if (!book) { box.replaceChildren(h("p", { class: "empty" }, "Este curso aún no tiene Excel. Importe uno o registre un estudiante.")); return; }
-  const cols = sheet.visibleColumns(book);
-  const rows = sheet.visibleRows(book);
-  const cell = (col, row) => {
-    const value = sheet.display(book, col, row);
-    const kind = sheet.kindOf(book, col);
+  grid = { cols: sheet.visibleColumns(book), rows: sheet.visibleRows(book) };
+  anchor = { c: clamp(anchor.c, 0, maxC()), r: clamp(anchor.r, 0, maxR()) };
+  focus = { c: clamp(focus.c, 0, maxC()), r: clamp(focus.r, 0, maxR()) };
+  const cell = (c, r) => {
+    const col = grid.cols[c]; const row = grid.rows[r - 1];
+    const value = sheet.display(book, col, row); const kind = sheet.kindOf(book, col);
     const cls = col === 3 ? "pct" : kind === "fixed" ? "" : `mark${value === 1 ? " yes" : value === 0 ? " no" : ""}`;
-    return h("td", { class: cls, "data-col": col, "data-id": row.id, contenteditable: sheet.isEditable(book, col) ? "true" : "false" }, String(value));
+    return h("td", { class: cls, "data-c": c, "data-r": r, "data-col": col, "data-id": row.id, contenteditable: "false" }, String(value));
   };
-  const letters = h("tr", {}, h("th", {}), cols.map((col) => h("th", { scope: "col", "data-col": col }, sheet.columnLetterOf(col))));
-  const titles = h("tr", {}, h("th", {}, "1"), cols.map((col) =>
-    h("td", { class: "head", "data-col": col, "data-id": "", contenteditable: sheet.kindOf(book, col) === "extra" ? "true" : "false" }, sheet.titleOf(book, col))));
-  const body = rows.map((row) => h("tr", {}, h("th", { "data-row": row.id }, String(book.rows.indexOf(row) + 2)), cols.map((col) => cell(col, row))));
+  const letters = h("tr", {}, h("th", { class: "corner", title: "Seleccionar todo" }), grid.cols.map((col, c) => h("th", { scope: "col", "data-hc": c }, sheet.columnLetterOf(col))));
+  const titles = h("tr", {}, h("th", { "data-hr": 0 }, "1"), grid.cols.map((col, c) =>
+    h("td", { class: "head", "data-c": c, "data-r": 0, "data-col": col, "data-id": "", contenteditable: "false" }, sheet.titleOf(book, col))));
+  const body = grid.rows.map((row, i) => h("tr", {}, h("th", { "data-hr": i + 1 }, String(book.rows.indexOf(row) + 2)), grid.cols.map((_, c) => cell(c, i + 1))));
   box.replaceChildren(h("table", { class: "sheet", "aria-label": `Asistencia de ${current.name}` }, h("thead", {}, letters), h("tbody", {}, titles, body)));
   const hidden = book.hidden.cols.length + book.hidden.rows.length;
-  say(`${book.rows.length} estudiante(s) · ${book.columns.length} lista(s)${hidden ? ` · ${hidden} oculta(s): clic derecho → Mostrar` : ""}`);
+  baseStatus = `${book.rows.length} estudiante(s) · ${book.columns.length} lista(s)${hidden ? ` · ${hidden} oculta(s): clic derecho → Mostrar` : ""}`;
+  paint();
 }
+
+function paint(scroll = false) {
+  box.querySelectorAll(".sel,.cur,.hl").forEach((el) => el.classList.remove("sel", "cur", "hl"));
+  if (!book || !grid.cols.length) return;
+  const { c1, c2, r1, r2 } = range();
+  let cells = 0; let count = 0; let sum = 0;
+  for (let r = r1; r <= r2; r += 1) {
+    box.querySelector(`th[data-hr="${r}"]`)?.classList.add("hl");
+    for (let c = c1; c <= c2; c += 1) {
+      tdAt(c, r)?.classList.add("sel");
+      cells += 1;
+      const value = r > 0 ? textAt(c, r).trim() : "";
+      if (value !== "" && Number.isFinite(Number(value))) { count += 1; sum += Number(value); }
+    }
+  }
+  for (let c = c1; c <= c2; c += 1) box.querySelector(`th[data-hc="${c}"]`)?.classList.add("hl");
+  const cur = tdAt(focus.c, focus.r);
+  cur?.classList.add("cur");
+  if (scroll) cur?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  $("celda").value = cells === 1 ? cellRef(focus.c, focus.r) : `${cellRef(c1, r1)}:${cellRef(c2, r2)}`;
+  $("formula").value = rawAt(focus.c, focus.r);
+  status.textContent = cells > 1
+    ? `${cells} celdas seleccionadas${count ? ` · Recuento: ${count} · Suma: ${round2(sum)} · Promedio: ${round2(sum / count)}` : ""}`
+    : baseStatus;
+}
+
+function setSelection(a, f, mode, scroll = false) {
+  let from = a; let to = f;
+  if (mode === "col") { from = { c: a.c, r: maxR() }; to = { c: f.c, r: 0 }; }
+  else if (mode === "row") { from = { c: maxC(), r: a.r }; to = { c: 0, r: f.r }; }
+  else if (mode === "all") { from = { c: maxC(), r: maxR() }; to = { c: 0, r: 0 }; }
+  anchor = from; focus = to; selMode = mode;
+  paint(scroll);
+}
+
+/* ---------- Cambios (con deshacer / rehacer) ---------- */
 
 async function apply(change, record = true) {
   try {
@@ -61,6 +129,13 @@ async function apply(change, record = true) {
     say(`⚠ ${error.message}`);
   }
   render();
+}
+
+async function stepHistory(from, to) {
+  if (!from.length || !book) return;
+  to.push(JSON.stringify(book));
+  const restored = JSON.parse(from.pop());
+  await apply(() => restored, false);
 }
 
 /** Agrega al curso los estudiantes nuevos SIN rostro (quedan pendientes de registro facial). */
@@ -99,24 +174,196 @@ async function importFile(file) {
   }
 }
 
-function closeMenu() { menu?.remove(); menu = null; }
-function openMenu(event, col, id) {
-  event.preventDefault();
-  closeMenu();
+const newColumn = () => { const title = prompt("Nombre de la columna (ej.: Participación):"); if (title !== null) apply((b) => sheet.addExtra(b, title)); };
+
+/* ---------- Acciones sobre la selección ---------- */
+
+const selColumns = () => grid.cols.slice(range().c1, range().c2 + 1);
+const selRowIds = () => grid.rows.slice(Math.max(range().r1, 1) - 1, range().r2).map((row) => row.id);
+
+function hideCols() {
+  const cols = selColumns();
+  if (cols.length) apply((b) => cols.reduce((acc, col) => sheet.hideColumn(acc, col), b));
+}
+function hideRows() {
+  const ids = selRowIds();
+  if (!ids.length) { say("⚠ Seleccione una o más filas de estudiantes."); return; }
+  apply((b) => ids.reduce((acc, id) => sheet.hideRow(acc, id), b));
+}
+function deleteCols() {
+  const cols = selColumns().filter((col) => sheet.kindOf(book, col) !== "fixed").sort((a, b) => b - a);
+  if (!cols.length) { say("⚠ Las 3 primeras columnas no se pueden eliminar."); return; }
+  if (confirm(`¿Eliminar ${cols.length} columna(s)?`)) apply((b) => cols.reduce((acc, col) => sheet.removeColumn(acc, col), b));
+}
+function deleteRows() {
+  const ids = selRowIds();
+  if (!ids.length) { say("⚠ Seleccione una o más filas de estudiantes."); return; }
+  if (confirm(`¿Eliminar ${ids.length} fila(s) del Excel? (los estudiantes siguen en el curso)`)) apply((b) => ids.reduce((acc, id) => sheet.removeRow(acc, id), b));
+}
+function clearSelection() {
+  const { c1, c2, r1, r2 } = range(); const jobs = [];
+  for (let r = Math.max(r1, 1); r <= r2; r += 1) for (let c = c1; c <= c2; c += 1) if (editableAt(c, r) && grid.cols[c] !== 2) jobs.push([grid.cols[c], idAt(r)]);
+  if (jobs.length) apply((b) => jobs.reduce((acc, [col, id]) => sheet.setCell(acc, col, id, ""), b));
+}
+function fillDown() {
+  const { c1, c2, r1, r2 } = range(); const top = Math.max(r1, 1); const jobs = [];
+  for (let c = c1; c <= c2; c += 1) for (let r = top + 1; r <= r2; r += 1) if (editableAt(c, r) && grid.cols[c] !== 2) jobs.push([grid.cols[c], idAt(r), rawAt(c, top)]);
+  if (jobs.length) apply((b) => jobs.reduce((acc, [col, id, v]) => sheet.setCell(acc, col, id, v), b));
+}
+function selectionText() {
+  const { c1, c2, r1, r2 } = range(); const lines = [];
+  for (let r = r1; r <= r2; r += 1) lines.push(Array.from({ length: c2 - c1 + 1 }, (_, i) => textAt(c1 + i, r)).join("\t"));
+  return lines.join("\n");
+}
+function pasteText(text) {
+  const { c1, r1 } = range(); const jobs = [];
+  text.replace(/\r/g, "").replace(/\n$/, "").split("\n").forEach((line, i) => line.split("\t").forEach((value, j) => {
+    const c = c1 + j; const r = Math.max(r1, 1) + i;
+    if (c <= maxC() && r <= maxR() && editableAt(c, r)) jobs.push([grid.cols[c], idAt(r), value]);
+  }));
+  if (!jobs.length) { say("⚠ No hay dónde pegar ahí."); return; }
+  apply((b) => jobs.reduce((acc, [col, id, value]) => { try { return sheet.setCell(acc, col, id, value); } catch { return acc; } }, b));
+}
+
+/* ---------- Edición de una celda ---------- */
+
+function startEdit(c, r, first = null) {
+  if (!editableAt(c, r)) { say("⚠ Esa celda no se puede editar."); return; }
+  const td = tdAt(c, r); const original = rawAt(c, r);
+  td.contentEditable = "true";
+  td.textContent = first ?? original;
+  editing = { td, c, r, original, col: grid.cols[c], id: idAt(r) };
+  td.focus();
+  const caret = document.createRange(); caret.selectNodeContents(td); caret.collapse(false);
+  const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(caret);
+}
+
+async function commitEdit(dc = 0, dr = 0) {
+  if (!editing) return;
+  const { td, c, r, col, id, original } = editing; const text = td.textContent.trim();
+  editing = null; td.contentEditable = "false";
+  if (text !== original.trim()) await apply((b) => sheet.setCell(b, col, id, text)); else td.textContent = textAt(c, r);
+  const to = { c: clamp(c + dc, 0, maxC()), r: clamp(r + dr, 0, maxR()) };
+  setSelection(to, to, "cell", true);
+  box.focus({ preventScroll: true });
+}
+
+function cancelEdit() {
+  if (!editing) return;
+  const { td, c, r } = editing; editing = null; td.contentEditable = "false"; td.textContent = textAt(c, r);
+  box.focus({ preventScroll: true });
+}
+
+/* ---------- Ratón ---------- */
+
+function hit(target) {
+  const td = target.closest?.("td[data-c]"); if (td) return { c: +td.dataset.c, r: +td.dataset.r, mode: "cell" };
+  const hc = target.closest?.("th[data-hc]"); if (hc) return { c: +hc.dataset.hc, r: 0, mode: "col" };
+  const hr = target.closest?.("th[data-hr]"); if (hr) return { c: 0, r: +hr.dataset.hr, mode: "row" };
+  return target.closest?.("th.corner") ? { c: 0, r: 0, mode: "all" } : null;
+}
+const inSelection = (p) => { const { c1, c2, r1, r2 } = range(); return p.c >= c1 && p.c <= c2 && p.r >= r1 && p.r <= r2; };
+
+box.addEventListener("mousedown", (event) => {
   if (!book) return;
-  const items = [];
-  if (col) items.push(["🙈 Ocultar columna", () => apply((b) => sheet.hideColumn(b, col))]);
-  if (id) items.push(["🙈 Ocultar fila", () => apply((b) => sheet.hideRow(b, id))]);
-  if (book.hidden.cols.length || book.hidden.rows.length) items.push(["👁 Mostrar columnas y filas ocultas", () => apply(sheet.showAll)]);
-  if (col && sheet.kindOf(book, col) !== "fixed") items.push(["🗑 Eliminar columna", () => confirm("¿Eliminar esta columna?") && apply((b) => sheet.removeColumn(b, col))]);
-  if (id) items.push(["🗑 Eliminar fila (solo del Excel)", () => confirm("¿Eliminar esta fila del Excel?") && apply((b) => sheet.removeRow(b, id))]);
-  items.push(["➕ Agregar columna", newColumn], ["➕ Agregar estudiante", addStudent]);
+  if (editing && editing.td.contains(event.target)) return;
+  const point = hit(event.target);
+  if (editing) commitEdit();
+  if (!point || (event.button === 2 && inSelection(point))) return;
+  event.preventDefault();
+  box.focus({ preventScroll: true });
+  if (event.button !== 0) return;
+  setSelection(event.shiftKey ? anchor : point, point, point.mode);
+  dragging = point.mode;
+});
+document.addEventListener("mousemove", (event) => {
+  if (!dragging) return;
+  if (event.buttons === 0) { dragging = null; return; }
+  const point = hit(event.target);
+  if (point && point.mode === dragging) setSelection(anchor, point, dragging);
+});
+document.addEventListener("mouseup", () => { dragging = null; });
+box.addEventListener("dblclick", (event) => { const point = hit(event.target); if (point?.mode === "cell") startEdit(point.c, point.r); });
+box.addEventListener("focusout", (event) => { if (editing && event.target === editing.td) commitEdit(); });
+box.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  const point = hit(event.target);
+  if (!point || !book) return;
+  if (!inSelection(point)) setSelection(point, point, point.mode);
+  openMenu(event);
+});
+
+function closeMenu() { menu?.remove(); menu = null; }
+function openMenu(event) {
+  closeMenu();
+  const hidden = book.hidden.cols.length + book.hidden.rows.length;
+  const items = [["🙈 Ocultar columnas", hideCols], ["🙈 Ocultar filas", hideRows]];
+  if (hidden) items.push(["👁 Mostrar columnas y filas ocultas", () => apply(sheet.showAll)]);
+  items.push(["🗑 Eliminar columnas", deleteCols], ["🗑 Eliminar filas (solo del Excel)", deleteRows], ["🧹 Borrar contenido (Supr)", clearSelection],
+    ["➕ Agregar columna", newColumn], ["➕ Agregar estudiante", addStudent]);
   menu = h("div", { class: "ctx", role: "menu", style: `left:${Math.min(event.clientX, innerWidth - 240)}px;top:${Math.min(event.clientY, innerHeight - items.length * 36 - 10)}px` },
     items.map(([label, run]) => h("button", { type: "button", role: "menuitem", onClick: () => { closeMenu(); run(); } }, label)));
   document.body.append(menu);
   menu.querySelector("button").focus();
 }
-const newColumn = () => { const title = prompt("Nombre de la columna (ej.: Participación):"); if (title !== null) apply((b) => sheet.addExtra(b, title)); };
+
+/* ---------- Teclado y portapapeles (como Excel) ---------- */
+
+const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+
+function moveFocus(dc, dr, extend) {
+  const to = { c: clamp(focus.c + dc, 0, maxC()), r: clamp(focus.r + dr, 0, maxR()) };
+  setSelection(extend ? anchor : to, to, "cell", true);
+}
+
+box.addEventListener("keydown", (event) => {
+  if (!book) return;
+  const { key } = event;
+  if (editing) {
+    if (key === "Enter") { event.preventDefault(); commitEdit(0, event.shiftKey ? -1 : 1); }
+    else if (key === "Tab") { event.preventDefault(); commitEdit(event.shiftKey ? -1 : 1, 0); }
+    else if (key === "Escape") { event.preventDefault(); cancelEdit(); }
+    return;
+  }
+  const mod = event.ctrlKey || event.metaKey;
+  if (ARROWS[key]) {
+    event.preventDefault();
+    const [dc, dr] = ARROWS[key]; const big = mod ? 1000 : 1;
+    moveFocus(dc * big, dr * big, event.shiftKey);
+  } else if (mod) {
+    const lower = key.toLowerCase();
+    const actions = {
+      a: () => setSelection({ c: 0, r: 0 }, { c: maxC(), r: maxR() }, "all"),
+      z: () => (event.shiftKey ? stepHistory(future, past) : stepHistory(past, future)),
+      y: () => stepHistory(future, past), d: fillDown, s: download, 9: hideRows, 0: hideCols,
+      "-": () => (selMode === "row" ? deleteRows() : deleteCols()),
+      home: () => setSelection({ c: 0, r: 0 }, { c: 0, r: 0 }, "cell", true),
+    };
+    if (actions[lower]) { event.preventDefault(); actions[lower](); }
+  } else if (key === "Enter") { event.preventDefault(); moveFocus(0, event.shiftKey ? -1 : 1, false); }
+  else if (key === "Tab") { event.preventDefault(); moveFocus(event.shiftKey ? -1 : 1, 0, false); }
+  else if (key === "Home") { event.preventDefault(); moveFocus(-1000, 0, event.shiftKey); }
+  else if (key === "End") { event.preventDefault(); moveFocus(1000, 0, event.shiftKey); }
+  else if (key === "F2") { event.preventDefault(); startEdit(focus.c, focus.r); }
+  else if (key === "Delete" || key === "Backspace") { event.preventDefault(); clearSelection(); }
+  else if (key.length === 1 && !event.altKey) { event.preventDefault(); startEdit(focus.c, focus.r, key); }
+});
+
+const boxIsActive = () => !editing && book && [box, document.body].includes(document.activeElement);
+document.addEventListener("copy", (event) => { if (boxIsActive()) { event.clipboardData.setData("text/plain", selectionText()); event.preventDefault(); } });
+document.addEventListener("cut", (event) => { if (boxIsActive()) { event.clipboardData.setData("text/plain", selectionText()); event.preventDefault(); clearSelection(); } });
+document.addEventListener("paste", (event) => { if (boxIsActive()) { event.preventDefault(); pasteText(event.clipboardData.getData("text/plain")); } });
+
+$("formula").addEventListener("keydown", (event) => {
+  if (!book) return;
+  if (event.key === "Escape") { paint(); box.focus(); return; }
+  if (event.key !== "Enter") return;
+  const { c, r } = focus;
+  if (!editableAt(c, r)) { say("⚠ Esa celda no se puede editar."); return; }
+  apply((b) => sheet.setCell(b, grid.cols[c], idAt(r), $("formula").value)).then(() => box.focus());
+});
+
+/* ---------- Descarga y carga ---------- */
 
 async function download() {
   if (!book) return;
@@ -126,8 +373,11 @@ async function download() {
 }
 
 async function show() {
+  const changedCourse = !current || current.course_id !== select.value;
   current = courses.find((c) => c.course_id === select.value) ?? null;
   $("descargar").disabled = current === null;
+  past.length = 0; future.length = 0;
+  if (changedCourse) { anchor = { c: 0, r: 1 }; focus = { c: 0, r: 1 }; }
   if (!current) { book = null; render(); return; }
   history.replaceState(null, "", `#${current.course_id}`);
   const stored = await books.get(current.course_id);
@@ -138,7 +388,7 @@ async function show() {
 }
 
 async function reload(force = false) {
-  if (busy && !force) return;
+  if ((editing || dragging) && !force) return;
   repository = await CourseRepository.load();
   courses = repository.courses;
   const wanted = select.value || location.hash.slice(1);
@@ -149,78 +399,6 @@ async function reload(force = false) {
   else current = courses.find((c) => c.course_id === select.value) ?? current;
 }
 
-function showActive() {
-  const td = active && box.querySelector(`td[data-col="${active.col}"][data-id="${active.id}"]`);
-  box.querySelectorAll("td.sel").forEach((cell) => cell.classList.remove("sel"));
-  td?.classList.add("sel");
-  const row = active && book?.rows.find((r) => r.id === active.id);
-  $("celda").value = active ? `${sheet.columnLetterOf(active.col)}${row ? book.rows.indexOf(row) + 2 : 1}` : "";
-  $("formula").value = active && book ? (row ? sheet.rawOf(book, active.col, row) : sheet.titleOf(book, active.col)) : "";
-}
-
-async function stepHistory(from, to) {
-  if (!from.length || !book) return;
-  to.push(JSON.stringify(book));
-  const restored = JSON.parse(from.pop());
-  await apply(() => restored, false);
-}
-
-function removeActive(kind) {
-  if (!active || !book) { say("⚠ Haga clic en una celda primero."); return; }
-  if (kind === "col") {
-    if (sheet.kindOf(book, active.col) === "fixed") { say("⚠ Las 3 primeras columnas no se pueden eliminar."); return; }
-    if (confirm(`¿Eliminar la columna «${sheet.titleOf(book, active.col)}»?`)) apply((b) => sheet.removeColumn(b, active.col));
-  } else if (!active.id) {
-    say("⚠ Elija una celda de un estudiante (no del encabezado).");
-  } else if (confirm("¿Eliminar esta fila del Excel? (el estudiante sigue en el curso)")) {
-    apply((b) => sheet.removeRow(b, active.id));
-  }
-}
-
-box.addEventListener("click", (event) => {
-  const td = event.target.closest?.("td[data-col]");
-  if (td) { active = { col: Number(td.dataset.col), id: td.dataset.id }; showActive(); }
-});
-$("formula").addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" || !active || !book || !active.id && sheet.kindOf(book, active.col) !== "extra") return;
-  apply((b) => sheet.setCell(b, active.col, active.id, $("formula").value));
-});
-$("deshacer").addEventListener("click", () => stepHistory(past, future));
-$("rehacer").addEventListener("click", () => stepHistory(future, past));
-$("col-borrar").addEventListener("click", () => removeActive("col"));
-$("fila-borrar").addEventListener("click", () => removeActive("row"));
-$("ocultar-col").addEventListener("click", () => { if (active) apply((b) => sheet.hideColumn(b, active.col)); else say("⚠ Haga clic en una celda primero."); });
-document.addEventListener("keydown", (event) => {
-  if (!(event.ctrlKey || event.metaKey) || event.target.isContentEditable || event.target.tagName === "INPUT") return;
-  if (event.key.toLowerCase() === "z") { event.preventDefault(); stepHistory(past, future); }
-  if (event.key.toLowerCase() === "y") { event.preventDefault(); stepHistory(future, past); }
-});
-if (channel) channel.onmessage = () => reload();
-
-box.addEventListener("focusin", (event) => {
-  busy = true;
-  const td = event.target.closest?.("td[data-col]");
-  if (!td || !book) return;
-  active = { col: Number(td.dataset.col), id: td.dataset.id };
-  const row = book.rows.find((r) => r.id === active.id);
-  if (row && sheet.kindOf(book, active.col) === "extra") td.textContent = sheet.rawOf(book, active.col, row); // muestra la fórmula al editar
-  showActive();
-});
-box.addEventListener("focusout", (event) => {
-  busy = false;
-  const td = event.target.closest?.("td[data-col]");
-  if (!td || td.contentEditable !== "true") return;
-  const col = Number(td.dataset.col);
-  const row = book.rows.find((r) => r.id === td.dataset.id) ?? { id: "", name: "" };
-  if (td.textContent.trim() !== String(td.dataset.id ? sheet.rawOf(book, col, row) : sheet.titleOf(book, col))) {
-    apply((b) => sheet.setCell(b, col, td.dataset.id, td.textContent));
-  }
-});
-box.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); event.target.blur(); } });
-box.addEventListener("contextmenu", (event) => {
-  const target = event.target.closest("[data-col],[data-row]");
-  openMenu(event, Number(target?.dataset.col) || 0, target?.dataset.id || target?.dataset.row || "");
-});
 document.addEventListener("click", closeMenu);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeMenu(); });
 select.addEventListener("change", show);
@@ -229,7 +407,14 @@ $("col-nueva").addEventListener("click", newColumn);
 $("est-nuevo").addEventListener("click", addStudent);
 $("mostrar").addEventListener("click", () => apply(sheet.showAll));
 $("descargar").addEventListener("click", download);
+$("deshacer").addEventListener("click", () => stepHistory(past, future));
+$("rehacer").addEventListener("click", () => stepHistory(future, past));
+$("col-borrar").addEventListener("click", deleteCols);
+$("fila-borrar").addEventListener("click", deleteRows);
+$("ocultar-col").addEventListener("click", hideCols);
+$("ocultar-fila").addEventListener("click", hideRows);
 $("importar").addEventListener("click", () => $("archivo").click());
 $("archivo").addEventListener("change", (event) => { const [file] = event.target.files; event.target.value = ""; if (file) importFile(file); });
+if (channel) channel.onmessage = () => reload();
 reload(true);
 setInterval(() => { if (!document.hidden && !menu) reload(); }, REFRESH_MS);

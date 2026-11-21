@@ -72,10 +72,15 @@ async function main() {
   app.hidden = false;
   let warnings = context.warnings;
   for (;;) {
-    const user = await runLogin(app, context.state.users);
+    const saved = sessionStorage.getItem("af_user"); // viene de volver desde el Excel
+    const user = (saved && context.state.users.get(saved)) || await runLogin(app, context.state.users);
+    sessionStorage.setItem("af_user", user.cedula);
     context.state.signIn(user);
     await new MainWindow(app, context.state, warnings).run();
     warnings = [];
+    sessionStorage.removeItem("af_user");
+    sessionStorage.removeItem("af_tab");
+    sessionStorage.removeItem("af_course");
     context.state.clearSubscribers();
     context.state.signOut();
   }

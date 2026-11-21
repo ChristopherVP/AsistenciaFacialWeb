@@ -13,6 +13,7 @@ for (const name of ["window", "document", "Node", "HTMLElement", "Event", "Keybo
   Object.defineProperty(globalThis, name, { value: name === "window" ? window : window[name], configurable: true, writable: true });
 }
 Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true });
+Object.defineProperty(globalThis, "sessionStorage", { value: window.sessionStorage, configurable: true });
 window.HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute("open", ""); };
 window.HTMLDialogElement.prototype.close = function close() { this.removeAttribute("open"); };
 window.HTMLElement.prototype.scrollIntoView = () => {};
