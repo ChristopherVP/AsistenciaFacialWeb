@@ -20,6 +20,9 @@ const openError = (name) => new CameraError(
   `No se pudo abrir la cámara ${name}. Verifica que esté conectada, que ninguna otra aplicación ` +
   "la esté usando y que el navegador tenga permiso para usar la cámara.");
 
+/** Quita el ID de hardware «(vvvv:pppp)» que Windows añade al nombre; solo para mostrar. */
+export const displayName = (name) => String(name).replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*/gi, " ").trim();
+
 export class Camera {
   constructor(stream, video) {
     this._stream = stream;

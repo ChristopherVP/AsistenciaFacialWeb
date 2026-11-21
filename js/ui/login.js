@@ -100,7 +100,7 @@ class LoginScreen {
     const saved = this._users.rememberedUsers().slice(0, MAX_SAVED_CARDS);
     if (saved.length) {
       body.append(h("div", { style: "font-weight:700;font-size:13px" }, "Entrar con un clic"),
-        saved.map((user) => this._savedCard(user)), h("hr"));
+        ...saved.map((user) => this._savedCard(user)), h("hr"));
     }
     const userInput = this._field(body, "Usuario", { restrict: allowsUsernameInput, value: username });
     const passwordInput = this._field(body, "Contraseña", { secret: true });
@@ -116,7 +116,7 @@ class LoginScreen {
 
   _savedCard(user) {
     return h("button", { type: "button", class: "saved-user", onClick: () => this._enterSaved(user) },
-      h("strong", {}, `👤  ${user.full_name}`), h("small", {}, `@${user.username}  ·  clic para entrar`));
+      h("strong", {}, `👤  ${user.full_name}`), h("small", {}, `@${user.username}  ·  ▶ clic para entrar`));
   }
 
   _enterSaved(user) {

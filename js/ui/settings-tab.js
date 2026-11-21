@@ -1,6 +1,6 @@
 import { APP_TITLE, COLORS, NOTICE_MS } from "../config.js";
 import { DEFAULT_SETTINGS } from "../models.js";
-import { Camera, detectCameras } from "../camera.js";
+import { Camera, detectCameras, displayName } from "../camera.js";
 import { AuthError, CameraError } from "../errors.js";
 import { installer } from "../pwa.js";
 import { CameraPreviewDialog } from "./dialogs.js";
@@ -120,7 +120,7 @@ export class SettingsTab {
     this._selected = saved ?? fallback;
     this._renderCards();
     this._cameraStatus.textContent =
-      `Cámaras del sistema: ${cameras.map((info) => info.name).join(", ")}. ${usable.length} disponible(s) para usar. ` +
+      `Cámaras del sistema: ${cameras.map((info) => displayName(info.name)).join(", ")}. ${usable.length} disponible(s) para usar. ` +
       "La elegida dice «EN USO»; pulse «Guardar ajustes» para confirmar.";
   }
 
@@ -141,7 +141,7 @@ export class SettingsTab {
       const badge = h("button", { type: "button", class: "badge", onClick: () => this._select(info), disabled: !info.available });
       this._badges.push({ info, badge, card: null });
       const cardElement = h("div", { class: "camera-card" },
-        h("div", { class: "name" }, info.name),
+        h("div", { class: "name" }, displayName(info.name)),
         h("div", { class: "kind" }, info.kind === "integrated" ? "Cámara integrada de la laptop" : `Dispositivo ${info.index}`),
         h("div", { class: "state", style: `color:${info.available ? COLORS.success : COLORS.danger}` },
           info.available ? "● Disponible" : "● No disponible (en uso por otra app)"),
