@@ -1,5 +1,5 @@
 /* Service worker: la aplicación funciona sin internet tras la primera visita. */
-const VERSION = "asistencia-facial-v3";
+const VERSION = "asistencia-facial-v4";
 const CORE = [
   "./", "./index.html", "./excel.html", "./manifest.webmanifest", "./css/estilos.css", "./icons/icon.svg",
   "./icons/icon-192.png", "./icons/icon-512.png",

@@ -5,10 +5,13 @@ import { nameSortKey } from "./validators.js";
 
 const FIXED = FIRST_DATE_COLUMN - 1;
 const FIXED_TITLES = ["Cédula", "Apellidos y nombres", "% Asistencia"];
+const flat = (args) => args.flat();
 const FUNCTIONS = Object.freeze({
-  SUM: (v) => v.reduce((a, b) => a + b, 0),
-  AVERAGE: (v) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0),
-  MIN: (v) => Math.min(...v), MAX: (v) => Math.max(...v), COUNT: (v) => v.length,
+  SUM: (...a) => flat(a).reduce((x, y) => x + y, 0),
+  AVERAGE: (...a) => { const v = flat(a); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : 0; },
+  MIN: (...a) => Math.min(...flat(a)), MAX: (...a) => Math.max(...flat(a)), COUNT: (...a) => flat(a).length,
+  MEDIAN: (...a) => { const v = flat(a).sort((x, y) => x - y); const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; },
+  ROUND: (x, n = 0) => Math.round(x * 10 ** n) / 10 ** n, ABS: (x) => Math.abs(x),
 });
 const byName = (a, b) => nameSortKey(a.name).localeCompare(nameSortKey(b.name));
 const sortedRows = (rows) => [...rows].sort(byName);
@@ -30,6 +33,10 @@ export function columnKey(book, col) {
 export function titleOf(book, col) {
   const kind = kindOf(book, col);
   return kind === "fixed" ? FIXED_TITLES[col - 1] : kind === "date" ? formatDateTime(new Date(dateAt(book, col).moment)) : extraAt(book, col).title;
+}
+/** Texto original de la celda (la fórmula, no su resultado). */
+export function rawOf(book, col, row) {
+  return kindOf(book, col) === "extra" ? (extraAt(book, col).cells[row.id] ?? "") : String(display(book, col, row));
 }
 export const isEditable = (book, col) => col === 2 || kindOf(book, col) !== "fixed";
 export const visibleColumns = (book) =>
@@ -78,8 +85,8 @@ export function evaluate(book, formula, depth = 0) {
         return `[${values.join(",")}]`;
       })
       .replace(/\b([A-Z]+)(\d+)\b/g, (_, c, r) => numberAt(book, c, Number(r), depth) ?? 0)
-      .replace(/\b(SUM|AVERAGE|MIN|MAX|COUNT)\(/g, "F.$1(");
-    if (!/^[\d\s+\-*/().,[\]]*$/.test(expr.replace(/F\.(SUM|AVERAGE|MIN|MAX|COUNT)/g, ""))) return "#ERROR";
+      .replace(/\b(SUM|AVERAGE|MIN|MAX|COUNT|MEDIAN|ROUND|ABS)\(/g, "F.$1(");
+    if (!/^[\d\s+\-*/().,[\]]*$/.test(expr.replace(/F\.(SUM|AVERAGE|MIN|MAX|COUNT|MEDIAN|ROUND|ABS)/g, ""))) return "#ERROR";
     const result = new Function("F", `"use strict"; return (${expr});`)(FUNCTIONS);
     return Number.isFinite(result) ? String(Math.round(result * 100) / 100) : "#ERROR";
   } catch {

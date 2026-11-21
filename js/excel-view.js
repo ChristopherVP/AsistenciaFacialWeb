@@ -12,6 +12,7 @@ const books = new BookRepository();
 const channel = globalThis.BroadcastChannel ? new BroadcastChannel("af-courses") : null;
 const $ = (id) => document.getElementById(id);
 const box = $("hoja"); const select = $("curso"); const status = $("estado");
+const past = []; const future = []; let active = null;
 let repository = null; let courses = []; let current = null; let book = null; let lastJson = ""; let busy = false; let menu = null;
 
 const say = (message) => { status.textContent = message; };
@@ -28,6 +29,8 @@ function goBack() {
 
 function render() {
   closeMenu();
+  active = null; showActive();
+  $("deshacer").disabled = !past.length; $("rehacer").disabled = !future.length;
   if (!current) { box.replaceChildren(h("p", { class: "empty" }, "Aún no hay cursos. Cree uno en el programa.")); return; }
   if (!book) { box.replaceChildren(h("p", { class: "empty" }, "Este curso aún no tiene Excel. Importe uno o registre un estudiante.")); return; }
   const cols = sheet.visibleColumns(book);
@@ -47,9 +50,11 @@ function render() {
   say(`${book.rows.length} estudiante(s) · ${book.columns.length} lista(s)${hidden ? ` · ${hidden} oculta(s): clic derecho → Mostrar` : ""}`);
 }
 
-async function apply(change) {
+async function apply(change, record = true) {
   try {
+    const before = book ? JSON.stringify(book) : null;
     book = sheet.normalize(change(book ?? sheet.normalize({ course_id: current.course_id, sheet_title: current.name, rows: [], columns: [] })));
+    if (record && before) { past.push(before); if (past.length > 50) past.shift(); future.length = 0; }
     await books.save(book);
     lastJson = JSON.stringify(book);
   } catch (error) {
@@ -144,13 +149,70 @@ async function reload(force = false) {
   else current = courses.find((c) => c.course_id === select.value) ?? current;
 }
 
-box.addEventListener("focusin", () => { busy = true; });
+function showActive() {
+  const td = active && box.querySelector(`td[data-col="${active.col}"][data-id="${active.id}"]`);
+  box.querySelectorAll("td.sel").forEach((cell) => cell.classList.remove("sel"));
+  td?.classList.add("sel");
+  const row = active && book?.rows.find((r) => r.id === active.id);
+  $("celda").value = active ? `${sheet.columnLetterOf(active.col)}${row ? book.rows.indexOf(row) + 2 : 1}` : "";
+  $("formula").value = active && book ? (row ? sheet.rawOf(book, active.col, row) : sheet.titleOf(book, active.col)) : "";
+}
+
+async function stepHistory(from, to) {
+  if (!from.length || !book) return;
+  to.push(JSON.stringify(book));
+  const restored = JSON.parse(from.pop());
+  await apply(() => restored, false);
+}
+
+function removeActive(kind) {
+  if (!active || !book) { say("⚠ Haga clic en una celda primero."); return; }
+  if (kind === "col") {
+    if (sheet.kindOf(book, active.col) === "fixed") { say("⚠ Las 3 primeras columnas no se pueden eliminar."); return; }
+    if (confirm(`¿Eliminar la columna «${sheet.titleOf(book, active.col)}»?`)) apply((b) => sheet.removeColumn(b, active.col));
+  } else if (!active.id) {
+    say("⚠ Elija una celda de un estudiante (no del encabezado).");
+  } else if (confirm("¿Eliminar esta fila del Excel? (el estudiante sigue en el curso)")) {
+    apply((b) => sheet.removeRow(b, active.id));
+  }
+}
+
+box.addEventListener("click", (event) => {
+  const td = event.target.closest?.("td[data-col]");
+  if (td) { active = { col: Number(td.dataset.col), id: td.dataset.id }; showActive(); }
+});
+$("formula").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || !active || !book || !active.id && sheet.kindOf(book, active.col) !== "extra") return;
+  apply((b) => sheet.setCell(b, active.col, active.id, $("formula").value));
+});
+$("deshacer").addEventListener("click", () => stepHistory(past, future));
+$("rehacer").addEventListener("click", () => stepHistory(future, past));
+$("col-borrar").addEventListener("click", () => removeActive("col"));
+$("fila-borrar").addEventListener("click", () => removeActive("row"));
+$("ocultar-col").addEventListener("click", () => { if (active) apply((b) => sheet.hideColumn(b, active.col)); else say("⚠ Haga clic en una celda primero."); });
+document.addEventListener("keydown", (event) => {
+  if (!(event.ctrlKey || event.metaKey) || event.target.isContentEditable || event.target.tagName === "INPUT") return;
+  if (event.key.toLowerCase() === "z") { event.preventDefault(); stepHistory(past, future); }
+  if (event.key.toLowerCase() === "y") { event.preventDefault(); stepHistory(future, past); }
+});
+if (channel) channel.onmessage = () => reload();
+
+box.addEventListener("focusin", (event) => {
+  busy = true;
+  const td = event.target.closest?.("td[data-col]");
+  if (!td || !book) return;
+  active = { col: Number(td.dataset.col), id: td.dataset.id };
+  const row = book.rows.find((r) => r.id === active.id);
+  if (row && sheet.kindOf(book, active.col) === "extra") td.textContent = sheet.rawOf(book, active.col, row); // muestra la fórmula al editar
+  showActive();
+});
 box.addEventListener("focusout", (event) => {
   busy = false;
   const td = event.target.closest?.("td[data-col]");
   if (!td || td.contentEditable !== "true") return;
   const col = Number(td.dataset.col);
-  if (td.textContent.trim() !== String(sheet.display(book, col, book.rows.find((r) => r.id === td.dataset.id) ?? { id: "", name: "" }))) {
+  const row = book.rows.find((r) => r.id === td.dataset.id) ?? { id: "", name: "" };
+  if (td.textContent.trim() !== String(td.dataset.id ? sheet.rawOf(book, col, row) : sheet.titleOf(book, col))) {
     apply((b) => sheet.setCell(b, col, td.dataset.id, td.textContent));
   }
 });

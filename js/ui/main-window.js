@@ -25,7 +25,8 @@ export class MainWindow {
     this._courses = new CoursesTab(state);
     this._settings = new SettingsTab(state);
     this._clock = h("span", { class: "header-clock", "aria-label": "Fecha y hora" });
-    this._leaveGuard = (event) => { if (this._attendance.isRunning) { event.preventDefault(); event.returnValue = ""; } };
+    // El navegador muestra su propio aviso («¿Salir del sitio?»); el texto no se puede personalizar.
+    this._leaveGuard = (event) => { event.preventDefault(); event.returnValue = ""; };
   }
 
   run() {
@@ -108,6 +109,7 @@ export class MainWindow {
   }
 
   async _logout() {
+    if (!(await askYesNo("¿Seguro que quieres cerrar sesión?", APP_TITLE))) return;
     if (!(await this._confirmEndSession("cerrar sesión"))) return;
     for (const timer of this._timers) { clearInterval(timer); clearTimeout(timer); }
     window.removeEventListener("beforeunload", this._leaveGuard);

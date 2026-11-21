@@ -69,14 +69,17 @@ export class AttendanceTab {
       this._notice, this._view.el,
     ], { padding: 14 });
 
-    this._courseSelect = h("select", { class: "input", id: "curso-lista", "aria-label": "Curso", onChange: () => this._renderRoster() });
+    this._courseList = h("datalist", { id: "cursos-lista" });
+    this._courseSelect = h("input", { class: "input", id: "curso-lista", type: "text", placeholder: "Escriba o elija el curso", autocomplete: "off", "aria-label": "Curso", onInput: () => this._renderRoster(), onFocus: (event) => event.target.select() });
+    this._courseSelect.setAttribute("list", "cursos-lista");
+    this._courseHint = h("p", { class: "hint", style: "margin:4px 0 0", "aria-live": "polite" });
     this._status = h("p", { class: "status", "aria-live": "polite" });
     this._timerCaption = h("p", { class: "hint", style: "margin:0" });
     this._timer = h("p", { class: "timer" });
     this._next = h("p", { class: "hint", style: "margin:2px 0 0" });
     const info = card([
       h("h2", { class: "card-title", style: "margin-bottom:2px" }, "Curso"),
-      h("div", { style: "margin:2px 0 8px" }, this._courseSelect),
+      h("div", { style: "margin:2px 0 8px" }, this._courseSelect, this._courseList, this._courseHint),
       this._status, this._timerCaption, this._timer, this._next,
     ]);
 
@@ -123,7 +126,7 @@ export class AttendanceTab {
     const names = courses.map((course) => course.name);
     this._courseIds = new Map(courses.map((course) => [course.name, course.course_id]));
     const previous = this._courseSelect.value;
-    this._courseSelect.replaceChildren(...names.map((name) => h("option", { value: name }, name)));
+    this._courseList.replaceChildren(...names.map((name) => h("option", { value: name })));
     this._courseSelect.value = names.includes(previous) ? previous : (names[0] ?? "");
     if (this._session === null) {
       this._status.textContent = names.length ? "Listo para tomar lista" : "Cree un curso en la pestaña Cursos para empezar";
@@ -131,7 +134,14 @@ export class AttendanceTab {
     this._renderRoster();
   }
 
-  _selectedCourse() { return this._state.repository.get(this._courseIds.get(this._courseSelect.value)); }
+  _selectedCourse() {
+    const typed = this._courseSelect.value.trim().toLowerCase();
+    const name = [...this._courseIds.keys()].find((item) => item.toLowerCase() === typed);
+    return this._state.repository.get(this._courseIds.get(name));
+  }
+
+  /** Solo los estudiantes con rostro registrado pueden tomar lista. */
+  static enrolled(course) { return course.students.filter((student) => student.embeddings.length > 0); }
 
   _rosterContext() {
     if (this._session !== null && this._course !== null) return { course: this._course, present: this._session.present, mode: "live" };
@@ -144,6 +154,7 @@ export class AttendanceTab {
 
   _renderRoster() {
     const { course, present, mode } = this._rosterContext();
+    this._courseHint.textContent = course !== null ? `✔ Curso seleccionado: ${course.name}` : (this._courseSelect.value.trim() ? "⚠ Ese curso no existe: elija uno de la lista" : "");
     this._table.clear();
     if (course === null) {
       for (const stat of [this._presentStat, this._absentStat, this._totalStat]) stat.set("–");
@@ -179,8 +190,11 @@ export class AttendanceTab {
 
   async _startManual() {
     const course = this._selectedCourse();
-    if (course === null) { this._showNotice("Primero cree un curso en la pestaña Cursos.", "info"); return; }
-    if (!course.students.length) { this._showNotice(`«${course.name}» no tiene estudiantes registrados.`, "warning"); return; }
+    if (course === null) { this._showNotice("Escriba o elija un curso de la lista (o cree uno en Cursos).", "info"); return; }
+    if (!AttendanceTab.enrolled(course).length) {
+      await showWarning(`No hay estudiantes con registro completo en «${course.name}».\nRegistre el rostro de al menos un estudiante en la pestaña Cursos.`, APP_TITLE);
+      return;
+    }
     await this._begin(course, null, false);
   }
 
@@ -207,7 +221,7 @@ export class AttendanceTab {
       this._skipAutomatic(`No se pudo registrar la lista automática: ${error.message}`);
       return;
     }
-    if (!course.students.length) { this._skipAutomatic(`Lista automática omitida: «${course.name}» no tiene estudiantes`); return; }
+    if (!AttendanceTab.enrolled(course).length) { this._skipAutomatic(`Lista automática omitida: «${course.name}» no tiene estudiantes con registro completo`); return; }
     try { window.focus(); } catch { /* el navegador puede ignorarlo */ }
     const endMinutes = parseTime(slot.end);
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor(endMinutes / 60), endMinutes % 60);
@@ -251,7 +265,7 @@ export class AttendanceTab {
     this._liveFailed = false;
     this._final = null;
     const level = precisionFor(this._state.settings.threshold);
-    this._session = new AttendanceSession(this._state.engine, new Gallery(course.students), level.threshold, level.margin, level.confirmFrames);
+    this._session = new AttendanceSession(this._state.engine, new Gallery(AttendanceTab.enrolled(course)), level.threshold, level.margin, level.confirmFrames);
     this._sessionStart = new Date();
     this._sessionEnd = end;
     this._endWarned = false;
@@ -314,9 +328,10 @@ export class AttendanceTab {
   }
 
   _allPresent() {
-    if (this._session === null || this._course === null || !this._course.students.length) return false;
+    const enrolled = this._course === null ? [] : AttendanceTab.enrolled(this._course);
+    if (this._session === null || !enrolled.length) return false;
     const present = this._session.present;
-    return this._course.students.every((student) => present.has(student.student_id));
+    return enrolled.every((student) => present.has(student.student_id));
   }
 
   _checkAllPresent() {

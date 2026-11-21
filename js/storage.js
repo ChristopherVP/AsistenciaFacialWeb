@@ -9,6 +9,7 @@ const STORE_KEYS = Object.freeze({
 const SETTINGS_KEY = "ajustes";
 
 let databasePromise = null;
+const bus = globalThis.BroadcastChannel ? new BroadcastChannel("af-courses") : null;
 
 function describe(error) {
   return error?.message || error?.name || String(error);
@@ -168,5 +169,5 @@ export class CourseRepository {
 
 export class BookRepository {
   get(courseId) { return getRecord("books", courseId); }
-  save(book) { return putRecord("books", book); }
+  async save(book) { await putRecord("books", book); bus?.postMessage("books"); }
 }

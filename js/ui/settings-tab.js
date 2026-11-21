@@ -89,12 +89,12 @@ export class SettingsTab {
 
   /* ---------- Cámaras ---------- */
 
-  async refreshCameras() {
+  async refreshCameras(probe = true) {
     if (this._state.sessionActive) { this._cameraStatus.textContent = "Finalice la lista en curso antes de buscar cámaras."; return; }
     this._cameraStatus.textContent = "Buscando cámaras…";
     let cameras;
     try {
-      cameras = await detectCameras();
+      cameras = await detectCameras(probe);
     } catch (error) {
       if (!(error instanceof CameraError)) throw error;
       this._cameras = [];
@@ -128,7 +128,7 @@ export class SettingsTab {
   async autoRefreshIfPermitted() {
     try {
       const permission = await navigator.permissions.query({ name: "camera" });
-      if (permission.state === "granted") await this.refreshCameras();
+      if (permission.state === "granted") await this.refreshCameras(false); // sin encender la cámara
     } catch {
       /* Permissions API no disponible: el usuario pulsa «Buscar cámaras». */
     }

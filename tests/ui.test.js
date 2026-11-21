@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+delete globalThis.BroadcastChannel; // el de Node no es compatible con los eventos de jsdom
 import fs from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -107,7 +108,7 @@ test("flujo completo de la interfaz: cuenta → cursos → horario → lista →
     await state.saveCourse(updated);
     await state.bookFor(updated).syncStudents(updated.students);
     click(byText('[role="tab"]', "Tomar lista"));
-    await waitFor(() => document.querySelectorAll("#curso-lista option").length === 1, "curso en la lista");
+    await waitFor(() => document.querySelectorAll("#cursos-lista option").length === 1, "curso en la lista");
     click(byText("button", "Iniciar lista"));
     await waitFor(() => state.sessionActive, "sesión activa");
     await waitFor(() => /Todos asistieron/.test(app.querySelector(".notice").textContent) || /registrado/.test(app.querySelector(".notice").textContent), "estudiante registrada");

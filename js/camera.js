@@ -23,6 +23,19 @@ const openError = (name) => new CameraError(
 /** Quita el ID de hardware «(vvvv:pppp)» que Windows añade al nombre; solo para mostrar. */
 export const displayName = (name) => String(name).replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*/gi, " ").trim();
 
+/** Mensaje según el estado real del permiso y si se usa la app instalada o el navegador. */
+async function permissionMessage() {
+  const installed = globalThis.matchMedia?.("(display-mode: standalone)").matches;
+  let state = "prompt";
+  try { state = (await navigator.permissions.query({ name: "camera" })).state; } catch { /* sin Permissions API */ }
+  if (state === "denied") {
+    return installed
+      ? "La cámara está bloqueada para la aplicación. Abra el menú ⋮ de la ventana → Configuración de la aplicación (o el candado) → Cámara → Permitir. Luego vuelva a intentarlo."
+      : "La cámara está bloqueada. Pulse el candado de la barra de direcciones → Cámara → Permitir y recargue la página.";
+  }
+  return "Falta aceptar el permiso de la cámara. Pulse «Permitir» en el aviso que aparece arriba y vuelva a intentarlo.";
+}
+
 export class Camera {
   constructor(stream, video) {
     this._stream = stream;
@@ -42,7 +55,7 @@ export class Camera {
       stream = await navigator.mediaDevices.getUserMedia({ video, audio: false });
     } catch (error) {
       if (error.name === "NotAllowedError") {
-        throw new CameraError("El navegador no tiene permiso para usar la cámara. Permítalo en el candado de la barra de direcciones.");
+        throw new CameraError(await permissionMessage());
       }
       throw openError(name || "seleccionada");
     }
@@ -83,16 +96,16 @@ export const classifyCamera = (name) =>
   INTEGRATED_HINTS.some((hint) => name.toLowerCase().includes(hint)) ? "integrated" : "unknown";
 
 /** Lista las cámaras con su nombre real. El navegador exige permiso para mostrar los nombres. */
-export async function detectCameras() {
+export async function detectCameras(probe = true) {
   if (!navigator.mediaDevices?.enumerateDevices) return [];
-  try {
-    const probe = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    probe.getTracks().forEach((track) => track.stop());
-  } catch (error) {
-    if (error.name === "NotAllowedError") {
-      throw new CameraError("El navegador no tiene permiso para usar la cámara. Permítalo en el candado de la barra de direcciones y pulse Buscar cámaras.");
+  if (probe) { // solo al pulsar «Buscar cámaras»: enciende la cámara un instante para pedir permiso
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      stream.getTracks().forEach((track) => track.stop());
+    } catch (error) {
+      if (error.name === "NotAllowedError") throw new CameraError(await permissionMessage());
+      if (error.name !== "NotFoundError") throw openError("del sistema");
     }
-    if (error.name !== "NotFoundError") throw openError("del sistema");
   }
   const devices = (await navigator.mediaDevices.enumerateDevices()).filter((item) => item.kind === "videoinput");
   return devices

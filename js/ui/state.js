@@ -16,7 +16,7 @@ export class AppState {
     this._settingsRepository = settingsRepository;
     this._listeners = [];
     this._channel = globalThis.BroadcastChannel ? new BroadcastChannel("af-courses") : null;
-    if (this._channel) this._channel.onmessage = async () => { await this.repository.reload(); this.notifyCoursesChanged(); };
+    if (this._channel) this._channel.onmessage = async () => { await this.repository.reload(); this.notifyCoursesChanged(false); };
   }
 
   signIn(user) { this.currentUser = user; }
@@ -30,7 +30,10 @@ export class AppState {
 
   subscribe(callback) { this._listeners.push(callback); }
   clearSubscribers() { this._listeners = []; }
-  notifyCoursesChanged() { for (const callback of [...this._listeners]) callback(); }
+  notifyCoursesChanged(broadcast = true) {
+    for (const callback of [...this._listeners]) callback();
+    if (broadcast) this._channel?.postMessage("changed"); // avisa a las otras ventanas/pestañas
+  }
 
   async saveCourse(course, notify = true) {
     await this.repository.save(createCourse(course));
