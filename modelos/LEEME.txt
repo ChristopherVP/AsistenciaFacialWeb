@@ -1,0 +1,10 @@
+COLOQUE AQUÍ LOS DOS MODELOS (los mismos de la versión de escritorio):
+
+  face_detection_yunet_2023mar.onnx      (~230 KB)
+  face_recognition_sface_2021dec.onnx    (~37 MB)
+
+Ya los tiene en su computadora: Windows -> C:\Users\SU_USUARIO\AsistenciaFacial\modelos
+Cópielos tal cual a esta carpeta.
+
+Si los descarga de nuevo desde GitHub use el botón «Download raw file» del archivo en
+https://github.com/opencv/opencv_zoo/tree/main/models  (no «Save as» sobre la página HTML).

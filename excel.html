@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1F4E79">
+  <title>Asistencia en Excel · Asistencia Facial</title>
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="stylesheet" href="css/estilos.css">
+  <style>
+    body { display: flex; flex-direction: column; height: 100vh; background: #fff; }
+    .bar { background: var(--primary); color: #fff; display: flex; align-items: center; gap: 12px; padding: 8px 16px; flex-wrap: wrap; }
+    .bar h1 { margin: 0; font-size: 18px; margin-right: auto; }
+    .bar select { padding: 6px 8px; min-width: 220px; }
+    .bar .btn { padding: 6px 12px; }
+    .sheet-wrap { flex: 1; overflow: auto; background: #E1E6EB; }
+    table.sheet { border-collapse: collapse; background: #fff; font: 13px Calibri, "Segoe UI", sans-serif; }
+    .sheet th, .sheet td { border: 1px solid #D0D7DE; padding: 3px 8px; height: 22px; white-space: nowrap; }
+    .sheet thead th { position: sticky; top: 0; background: #F0F2F5; color: #444; font-weight: 400; text-align: center; z-index: 2; }
+    .sheet tbody th { position: sticky; left: 0; background: #F0F2F5; color: #444; font-weight: 400; text-align: center; min-width: 38px; z-index: 1; }
+    .sheet td.head { background: #1F4E79; color: #fff; font-weight: 700; text-align: center; }
+    .sheet td.mark { text-align: center; }
+    .sheet td.pct { text-align: center; font-weight: 700; }
+    .sheet td.yes { color: #1E7B46; } .sheet td.no { color: #B03A2E; }
+    .tabs-bottom { background: #F0F2F5; border-top: 1px solid #C9D1D9; padding: 4px 12px; display: flex; gap: 12px; align-items: center; }
+    .tabs-bottom .sheet-tab { background: #fff; border: 1px solid #C9D1D9; border-bottom: 3px solid #1E7B46; padding: 3px 16px; font-weight: 700; }
+    .empty { padding: 40px; text-align: center; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <h1>📊 Asistencia en Excel</h1>
+    <label>Curso: <select id="curso" aria-label="Curso"></select></label>
+    <button class="btn" id="actualizar" type="button">🔄 Actualizar</button>
+    <button class="btn btn-success" id="descargar" type="button">⬇ Descargar .xlsx</button>
+    <a class="btn" href="./index.html">← Volver al programa</a>
+  </header>
+  <main class="sheet-wrap" id="hoja" aria-live="polite"></main>
+  <footer class="tabs-bottom"><span class="sheet-tab" id="nombre-hoja">Asistencia</span><span class="hint" id="estado"></span></footer>
+  <script type="module" src="js/excel-view.js"></script>
+</body>
+</html>

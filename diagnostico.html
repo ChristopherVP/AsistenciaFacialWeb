@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diagnóstico de modelos · Asistencia Facial</title>
+  <link rel="stylesheet" href="css/estilos.css">
+  <style>main{max-width:860px;margin:0 auto;padding:20px}pre{background:#fff;border:1px solid var(--border);padding:12px;white-space:pre-wrap}canvas{max-width:100%;background:#111}</style>
+</head>
+<body>
+<main>
+  <h1>Diagnóstico de YuNet y SFace</h1>
+  <p class="hint">Comprueba que los modelos cargan y funcionan en este navegador. Los resultados se comparan con la versión de escritorio.</p>
+  <div class="row" style="flex-wrap:wrap">
+    <button class="btn btn-primary" id="cargar" type="button">1. Cargar modelos</button>
+    <button class="btn" id="camara" type="button" disabled>2. Probar con la cámara</button>
+    <label class="btn">3. Probar con una foto <input id="foto" type="file" accept="image/*" hidden></label>
+  </div>
+  <p><canvas id="lienzo" width="640" height="480"></canvas></p>
+  <pre id="registro" aria-live="polite">Pulse «Cargar modelos».</pre>
+</main>
+<script type="module" src="js/diagnostico.js"></script>
+</body>
+</html>

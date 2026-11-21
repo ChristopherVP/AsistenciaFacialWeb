@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Asistencia Facial</title>
+  <meta name="description" content="Control de asistencia con reconocimiento facial. Funciona sin internet.">
+  <meta name="theme-color" content="#1F4E79">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <div id="splash" class="splash" role="status" aria-live="polite">
+    <div id="splash-logo"></div>
+    <h1 class="splash-title">Asistencia Facial</h1>
+    <p id="splash-message" class="splash-message">Iniciando…</p>
+    <div class="progress progress-splash" aria-hidden="true"><div id="splash-bar" class="progress-bar"></div></div>
+    <div id="splash-actions" class="splash-actions"></div>
+  </div>
+  <div id="app" class="app" hidden></div>
+  <div id="overlay-root"></div>
+  <noscript><p class="noscript">Esta aplicación necesita JavaScript.</p></noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

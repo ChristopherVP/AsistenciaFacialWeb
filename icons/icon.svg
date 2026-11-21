@@ -1,0 +1,12 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo de Asistencia Facial">
+  <rect x="2" y="2" width="96" height="96" rx="22" fill="#1F4E79"/>
+  <rect x="30" y="24" width="22" height="14" rx="4" fill="#EAF2F8"/>
+  <rect x="14" y="32" width="72" height="44" rx="9" fill="#EAF2F8"/>
+  <circle cx="50" cy="55" r="18" fill="#1F4E79"/>
+  <circle cx="50" cy="55" r="13" fill="#2E86C1"/>
+  <circle cx="50" cy="55" r="7" fill="#153250"/>
+  <circle cx="47.5" cy="51.5" r="2.5" fill="#fff" fill-opacity=".9"/>
+  <circle cx="76" cy="42" r="4" fill="#B03A2E"/>
+  <circle cx="78" cy="76" r="16" fill="#2E8B57" stroke="#fff" stroke-width="2.5"/>
+  <polyline points="70,76 76,82 87,69" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
