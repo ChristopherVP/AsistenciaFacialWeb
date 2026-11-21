@@ -224,3 +224,13 @@ dialog::backdrop { background: rgba(0, 0, 0, .45); }
 @media (prefers-reduced-motion: reduce) {
   .save-prompt, .progress-bar { transition: none; }
 }
+
+/* Combo de cursos (letras negras sobre fondo blanco) y Excel dentro del programa */
+.combo { position: relative; }
+.combo .input { padding-right: 36px; }
+.combo-arrow { position: absolute; right: 0; top: 0; bottom: 0; width: 36px; background: none; border: 0; cursor: pointer; color: #000; font-size: 16px; }
+.combo-menu { position: absolute; left: 0; right: 0; top: 100%; z-index: 40; margin: 2px 0 0; padding: 4px 0; list-style: none; background: #fff; border: 1px solid var(--border); box-shadow: 0 6px 16px rgba(0,0,0,.2); max-height: 240px; overflow: auto; }
+.combo-menu li { padding: 9px 12px; color: #000; background: #fff; cursor: pointer; font-size: 15px; font-weight: 400; }
+.combo-menu li:hover, .combo-menu li.active { background: var(--select); }
+.combo-menu[hidden], .combo-menu li[hidden] { display: none; }
+.excel-frame { display: block; width: 100%; height: calc(100vh - 170px); min-height: 420px; border: 1px solid var(--border); background: #fff; }

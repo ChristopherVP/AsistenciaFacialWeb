@@ -11,7 +11,10 @@
     body { display: flex; flex-direction: column; height: 100vh; background: #fff; }
     .bar { background: var(--primary); color: #fff; display: flex; align-items: center; gap: 8px; padding: 8px 16px; flex-wrap: wrap; }
     .bar h1 { margin: 0 auto 0 0; font-size: 18px; }
-    .bar select { padding: 6px 8px; min-width: 200px; }
+    .bar select { padding: 6px 8px; min-width: 200px; background: #fff !important; color: #000 !important; color-scheme: light; border: 1px solid #C9D1D9; }
+    body.embed .bar h1 { display: none; } body.embed #volver { margin-right: auto; }
+    .bar select option { background: #fff !important; color: #000 !important; }
+    .bar label { color: #fff; }
     .bar .btn { padding: 6px 10px; }
     .sheet-wrap { flex: 1; overflow: auto; background: #E1E6EB; }
     table.sheet { border-collapse: collapse; background: #fff; font: 13px Calibri, "Segoe UI", sans-serif; }
@@ -42,7 +45,7 @@
 </head>
 <body>
   <header class="bar">
-    <button class="btn" id="volver" type="button">← Volver al programa</button>
+    <button class="btn" id="volver" type="button">← Volver</button>
     <h1>📊 Asistencia en Excel</h1>
     <label>Curso: <select id="curso" aria-label="Curso"></select></label>
     <button class="btn btn-success" id="descargar" type="button">⬇ Descargar .xlsx</button>

@@ -12,6 +12,8 @@ const books = new BookRepository();
 const channel = globalThis.BroadcastChannel ? new BroadcastChannel("af-courses") : null;
 const $ = (id) => document.getElementById(id);
 const box = $("hoja"); const select = $("curso"); const status = $("estado");
+const embedded = new URLSearchParams(location.search).has("embed") && window.parent !== window;
+if (embedded) document.body.classList.add("embed");
 const past = []; const future = [];
 let repository = null; let courses = []; let current = null; let book = null; let lastJson = "";
 let menu = null; let editing = null; let dragging = null; let selMode = "cell"; let baseStatus = "";
@@ -49,6 +51,7 @@ const round2 = (n) => Math.round(n * 100) / 100;
 /* ---------- Volver al programa (siempre regresa) ---------- */
 
 function goBack() {
+  if (embedded) { parent.postMessage("af-volver", location.origin); return; } // dentro del programa: vuelve a la pestaña anterior
   try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch { /* el navegador puede negar el foco */ }
   window.close();
   // Si el navegador no deja cerrar esta pestaña, se vuelve al programa en la misma pestaña (la sesión y la pestaña se restauran).
@@ -391,7 +394,7 @@ async function reload(force = false) {
   if ((editing || dragging) && !force) return;
   repository = await CourseRepository.load();
   courses = repository.courses;
-  const wanted = select.value || location.hash.slice(1);
+  const wanted = location.hash.slice(1) || select.value;
   select.replaceChildren(...courses.map((c) => h("option", { value: c.course_id }, c.name)));
   select.value = courses.some((c) => c.course_id === wanted) ? wanted : (courses[0]?.course_id ?? "");
   const stored = current ? await books.get(select.value) : null;
@@ -416,5 +419,6 @@ $("ocultar-fila").addEventListener("click", hideRows);
 $("importar").addEventListener("click", () => $("archivo").click());
 $("archivo").addEventListener("change", (event) => { const [file] = event.target.files; event.target.value = ""; if (file) importFile(file); });
 if (channel) channel.onmessage = () => reload();
+window.addEventListener("hashchange", () => reload(true)); // el programa cambia de curso con #idCurso
 reload(true);
 setInterval(() => { if (!document.hidden && !menu) reload(); }, REFRESH_MS);

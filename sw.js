@@ -1,5 +1,5 @@
 /* Service worker: la aplicación funciona sin internet tras la primera visita. */
-const VERSION = "asistencia-facial-v4";
+const VERSION = "asistencia-facial-v7";
 const CORE = [
   "./", "./index.html", "./excel.html", "./manifest.webmanifest", "./css/estilos.css", "./icons/icon.svg",
   "./icons/icon-192.png", "./icons/icon-512.png",
@@ -38,6 +38,15 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith((async () => {
     const cache = await caches.open(VERSION);
+    const path = new URL(request.url).pathname;
+    if (!/\.(onnx|wasm)$/.test(path) && !path.includes("/vendor/") && !path.includes("/icons/")) {
+      // Código de la app: primero la red (siempre la última versión); sin internet usa la copia guardada.
+      try {
+        const response = await fetch(request, { cache: "no-cache" });
+        if (response.ok && response.status === 200) cache.put(request, response.clone());
+        return response;
+      } catch { /* sin internet */ }
+    }
     const cached = await cache.match(request, { ignoreSearch: true });
     if (cached) return cached;
     try {

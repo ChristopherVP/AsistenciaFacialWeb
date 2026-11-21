@@ -83,9 +83,9 @@ test("flujo completo de la interfaz: cuenta → cursos → horario → lista →
   const main = new MainWindow(app, state, []);
   main.run();
 
-  await t.test("ventana principal con 3 pestañas y reloj", () => {
+  await t.test("ventana principal con 4 pestañas y reloj", () => {
     assert.match(app.querySelector(".app-header").textContent, /PEREZ GOMEZ ANA/);
-    assert.equal(app.querySelectorAll('[role="tab"]').length, 3);
+    assert.equal(app.querySelectorAll('[role="tab"]').length, 4);
     assert.match(app.querySelector(".header-clock").textContent, /\d\d:\d\d:\d\d/);
   });
 
@@ -109,7 +109,7 @@ test("flujo completo de la interfaz: cuenta → cursos → horario → lista →
     await state.saveCourse(updated);
     await state.bookFor(updated).syncStudents(updated.students);
     click(byText('[role="tab"]', "Tomar lista"));
-    await waitFor(() => document.querySelectorAll("#cursos-lista option").length === 1, "curso en la lista");
+    await waitFor(() => document.querySelectorAll("#cursos-lista li").length === 1, "curso en la lista");
     click(byText("button", "Iniciar lista"));
     await waitFor(() => state.sessionActive, "sesión activa");
     await waitFor(() => /Todos asistieron/.test(app.querySelector(".notice").textContent) || /registrado/.test(app.querySelector(".notice").textContent), "estudiante registrada");

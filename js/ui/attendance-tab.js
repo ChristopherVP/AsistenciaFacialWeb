@@ -69,9 +69,15 @@ export class AttendanceTab {
       this._notice, this._view.el,
     ], { padding: 14 });
 
-    this._courseList = h("datalist", { id: "cursos-lista" });
-    this._courseSelect = h("input", { class: "input", id: "curso-lista", type: "text", placeholder: "Escriba o elija el curso", autocomplete: "off", "aria-label": "Curso", onInput: () => this._renderRoster(), onFocus: (event) => event.target.select() });
-    this._courseSelect.setAttribute("list", "cursos-lista");
+    this._courseList = h("ul", { class: "combo-menu", id: "cursos-lista", role: "listbox", hidden: true });
+    this._courseSelect = h("input", { class: "input", id: "curso-lista", type: "text", placeholder: "Escriba o elija el curso", autocomplete: "off", role: "combobox", "aria-label": "Curso", "aria-controls": "cursos-lista",
+      onInput: () => { this._renderRoster(); this._showCourseMenu(true); },
+      onFocus: (event) => { event.target.select(); this._showCourseMenu(false); },
+      onClick: () => this._showCourseMenu(false),
+      onBlur: () => setTimeout(() => { this._courseList.hidden = true; }, 120),
+      onKeydown: (event) => this._comboKey(event) });
+    this._courseArrow = h("button", { type: "button", class: "combo-arrow", tabindex: "-1", "aria-label": "Mostrar cursos",
+      onMousedown: (event) => { event.preventDefault(); this._courseSelect.focus(); this._showCourseMenu(false); } }, "▾");
     this._courseHint = h("p", { class: "hint", style: "margin:4px 0 0", "aria-live": "polite" });
     this._status = h("p", { class: "status", "aria-live": "polite" });
     this._timerCaption = h("p", { class: "hint", style: "margin:0" });
@@ -79,7 +85,7 @@ export class AttendanceTab {
     this._next = h("p", { class: "hint", style: "margin:2px 0 0" });
     const info = card([
       h("h2", { class: "card-title", style: "margin-bottom:2px" }, "Curso"),
-      h("div", { style: "margin:2px 0 8px" }, this._courseSelect, this._courseList, this._courseHint),
+      h("div", { style: "margin:2px 0 8px" }, h("div", { class: "combo" }, this._courseSelect, this._courseArrow, this._courseList), this._courseHint),
       this._status, this._timerCaption, this._timer, this._next,
     ]);
 
@@ -126,12 +132,41 @@ export class AttendanceTab {
     const names = courses.map((course) => course.name);
     this._courseIds = new Map(courses.map((course) => [course.name, course.course_id]));
     const previous = this._courseSelect.value;
-    this._courseList.replaceChildren(...names.map((name) => h("option", { value: name })));
+    this._courseList.replaceChildren(...names.map((name) => h("li", { role: "option", onMousedown: (event) => { event.preventDefault(); this._pickCourse(name); } }, name)));
     this._courseSelect.value = names.includes(previous) ? previous : (names[0] ?? "");
     if (this._session === null) {
       this._status.textContent = names.length ? "Listo para tomar lista" : "Cree un curso en la pestaña Cursos para empezar";
     }
     this._renderRoster();
+  }
+
+  _showCourseMenu(filter) {
+    if (this._courseSelect.disabled) return;
+    const typed = filter ? this._courseSelect.value.trim().toLowerCase() : "";
+    let shown = 0;
+    for (const item of this._courseList.children) {
+      const match = item.textContent.toLowerCase().includes(typed);
+      item.hidden = !match; item.classList.remove("active");
+      if (match) shown += 1;
+    }
+    this._courseList.hidden = shown === 0;
+  }
+
+  _pickCourse(name) { this._courseSelect.value = name; this._courseList.hidden = true; this._renderRoster(); }
+
+  _comboKey(event) {
+    const items = [...this._courseList.children].filter((item) => !item.hidden);
+    const at = items.findIndex((item) => item.classList.contains("active"));
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (this._courseList.hidden) this._showCourseMenu(false);
+      const next = event.key === "ArrowDown" ? Math.min(items.length - 1, at + 1) : Math.max(0, at - 1);
+      items.forEach((item, index) => item.classList.toggle("active", index === next));
+      items[next]?.scrollIntoView({ block: "nearest" });
+    } else if (event.key === "Enter" && !this._courseList.hidden) {
+      const choice = items[at] ?? (items.length === 1 ? items[0] : null);
+      if (choice) { event.preventDefault(); this._pickCourse(choice.textContent); }
+    } else if (event.key === "Escape") this._courseList.hidden = true;
   }
 
   _selectedCourse() {

@@ -18,6 +18,7 @@ export class CoursesTab {
   constructor(state) {
     this._state = state;
     this._selectedId = sessionStorage.getItem("af_course") || null;
+    this.onViewExcel = null;
     this._refreshing = false;
     this._build();
     state.subscribe(() => this._refreshList());
@@ -78,6 +79,8 @@ export class CoursesTab {
         h("p", { class: "hint", style: "margin:8px 0 0" },
           "La lista se toma sola dentro de cada intervalo, solo a los estudiantes de este curso. La aplicación debe estar abierta.")));
   }
+
+  get selectedId() { return this._selectedId; }
 
   _current() { return this._state.repository.get(this._selectedId); }
 
@@ -209,7 +212,8 @@ export class CoursesTab {
   _viewExcel() {
     const course = this._current();
     if (course === null) return;
-    window.open(`excel.html#${course.course_id}`, "_blank");
+    if (this.onViewExcel) this.onViewExcel(course.course_id);
+    else window.open(`excel.html#${course.course_id}`, "_blank");
   }
 
   async _downloadExcel() {
