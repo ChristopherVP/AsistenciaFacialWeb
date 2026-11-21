@@ -15,6 +15,8 @@ export class AppState {
     this.sessionActive = false;
     this._settingsRepository = settingsRepository;
     this._listeners = [];
+    this._channel = globalThis.BroadcastChannel ? new BroadcastChannel("af-courses") : null;
+    if (this._channel) this._channel.onmessage = async () => { await this.repository.reload(); this.notifyCoursesChanged(); };
   }
 
   signIn(user) { this.currentUser = user; }

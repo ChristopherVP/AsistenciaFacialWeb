@@ -66,7 +66,8 @@ export class CoursesTab {
       section("👥  Estudiantes (A-Z por apellidos)", this._studentsTable.el,
         h("div", { class: "row", style: "margin-top:8px;flex-wrap:wrap" },
           h("button", { type: "button", class: "btn btn-primary", onClick: () => this._addStudent() }, "➕  Agregar estudiante"),
-          h("button", { type: "button", class: "btn", onClick: () => this._removeStudent() }, "Quitar seleccionado"))),
+          h("button", { type: "button", class: "btn", onClick: () => this._removeStudent() }, "Quitar seleccionado"),
+          h("button", { type: "button", class: "btn btn-success", onClick: () => this._finishStudent() }, "✔  Terminar registro"))),
       section("⏰  Horario de lista automática",
         h("div", { class: "row-between", style: "margin-bottom:6px" }, h("span", {}),
           h("label", { class: "day-toggle wide" }, this._enabled, this._enabledText)),
@@ -119,7 +120,7 @@ export class CoursesTab {
     this._scheduleChip.textContent = text;
     this._scheduleChip.style.background = color;
     this._studentsTable.clear();
-    course.students.forEach((student, index) => this._studentsTable.add([index + 1, student.student_id, student.name], student.student_id));
+    course.students.forEach((student, index) => this._studentsTable.add([index + 1, student.student_id, student.embeddings.length ? student.name : `${student.name}   ⏳ Falta rostro`], student.student_id));
     this._studentsTable.setEmptyText("Aún no hay estudiantes. Pulse «Agregar estudiante».");
     this._slotsTable.clear();
     course.slots.forEach((slot, index) => this._slotsTable.add([slotDaysText(slot), slot.start, slot.end, `${slotMinutes(slot)} min`], String(index)));
@@ -254,6 +255,24 @@ export class CoursesTab {
         `El estudiante se guardó, pero aún no se agregó al Excel:\n${error.message}\n\n` +
         "Se agregará automáticamente en la próxima lista.", APP_TITLE);
     }
+  }
+
+  /** Completa el registro facial de un estudiante importado desde Excel (ya tiene cédula y nombre). */
+  async _finishStudent() {
+    const course = this._current();
+    const student = course?.students.find((item) => item.student_id === this._studentsTable.selected);
+    if (!student) { await showInfo("Seleccione un estudiante de la lista.", APP_TITLE); return; }
+    if (student.embeddings.length) { await showInfo("Este estudiante ya terminó su registro facial.", APP_TITLE); return; }
+    if (await this._locked()) return;
+    new RegistrationDialog({
+      engine: this._state.engine, openCamera: () => this._state.openCamera(), courseName: course.name,
+      prefill: { cedula: student.student_id, name: student.name },
+      isTaken: () => false,
+      findDuplicate: (cedula, samples) => this._findDuplicateFace(cedula, samples),
+      onSaved: (done) => this._saveUpdate((current) => createCourse({
+        ...current, students: current.students.map((item) => (item.student_id === done.student_id ? done : item)),
+      })),
+    });
   }
 
   async _removeStudent() {

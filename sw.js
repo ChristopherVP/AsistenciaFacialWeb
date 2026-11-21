@@ -1,11 +1,11 @@
 /* Service worker: la aplicación funciona sin internet tras la primera visita. */
-const VERSION = "asistencia-facial-v2";
+const VERSION = "asistencia-facial-v3";
 const CORE = [
   "./", "./index.html", "./excel.html", "./manifest.webmanifest", "./css/estilos.css", "./icons/icon.svg",
   "./icons/icon-192.png", "./icons/icon-512.png",
   "./js/main.js", "./js/config.js", "./js/errors.js", "./js/models.js", "./js/validators.js", "./js/scheduler.js",
   "./js/storage.js", "./js/auth.js", "./js/face-engine.js", "./js/model-loader.js", "./js/enrollment.js",
-  "./js/attendance.js", "./js/excel.js", "./js/camera.js", "./js/voice.js", "./js/backup.js", "./js/pwa.js", "./js/excel-view.js",
+  "./js/attendance.js", "./js/excel.js", "./js/camera.js", "./js/voice.js", "./js/backup.js", "./js/pwa.js", "./js/excel-view.js", "./js/sheet-model.js", "./js/excel-import.js",
   "./js/ui/dom.js", "./js/ui/messagebox.js", "./js/ui/branding.js", "./js/ui/widgets.js", "./js/ui/dialogs.js",
   "./js/ui/state.js", "./js/ui/save-prompt.js", "./js/ui/login.js", "./js/ui/main-window.js",
   "./js/ui/attendance-tab.js", "./js/ui/courses-tab.js", "./js/ui/settings-tab.js",

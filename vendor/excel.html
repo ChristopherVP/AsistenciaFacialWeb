@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1F4E79">
+  <title>Asistencia en Excel · Asistencia Facial</title>
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="stylesheet" href="css/estilos.css">
+  <style>
+    body { display: flex; flex-direction: column; height: 100vh; background: #fff; }
+    .bar { background: var(--primary); color: #fff; display: flex; align-items: center; gap: 8px; padding: 8px 16px; flex-wrap: wrap; }
+    .bar h1 { margin: 0 auto 0 0; font-size: 18px; }
+    .bar select { padding: 6px 8px; min-width: 200px; }
+    .bar .btn { padding: 6px 10px; }
+    .sheet-wrap { flex: 1; overflow: auto; background: #E1E6EB; }
+    table.sheet { border-collapse: collapse; background: #fff; font: 13px Calibri, "Segoe UI", sans-serif; }
+    .sheet th, .sheet td { border: 1px solid #D0D7DE; padding: 3px 8px; height: 22px; white-space: nowrap; }
+    .sheet thead th { position: sticky; top: 0; background: #F0F2F5; color: #444; font-weight: 400; text-align: center; z-index: 2; cursor: context-menu; }
+    .sheet tbody th { position: sticky; left: 0; background: #F0F2F5; color: #444; font-weight: 400; text-align: center; min-width: 38px; z-index: 1; cursor: context-menu; }
+    .sheet td.head { background: #1F4E79; color: #fff; font-weight: 700; text-align: center; }
+    .sheet td.mark, .sheet td.pct { text-align: center; }
+    .sheet td.pct { font-weight: 700; }
+    .sheet td.yes { color: #1E7B46; } .sheet td.no { color: #B03A2E; }
+    .sheet td[contenteditable="true"]:focus { outline: 2px solid #1E7B46; outline-offset: -2px; background: #F4FBF6; }
+    .tabs-bottom { background: #F0F2F5; border-top: 1px solid #C9D1D9; padding: 4px 12px; display: flex; gap: 12px; align-items: center; }
+    .tabs-bottom .sheet-tab { background: #fff; border: 1px solid #C9D1D9; border-bottom: 3px solid #1E7B46; padding: 3px 16px; font-weight: 700; }
+    .empty { padding: 40px; text-align: center; color: var(--muted); }
+    .ctx { position: fixed; z-index: 50; background: #fff; border: 1px solid #C9D1D9; box-shadow: 0 4px 14px rgba(0,0,0,.2); min-width: 220px; padding: 4px 0; }
+    .ctx button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 7px 14px; font: inherit; cursor: pointer; }
+    .ctx button:hover, .ctx button:focus { background: #E8F0F8; outline: none; }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <button class="btn" id="volver" type="button">← Volver al programa</button>
+    <h1>📊 Asistencia en Excel</h1>
+    <label>Curso: <select id="curso" aria-label="Curso"></select></label>
+    <button class="btn" id="col-nueva" type="button">➕ Columna</button>
+    <button class="btn" id="est-nuevo" type="button">➕ Estudiante</button>
+    <button class="btn" id="importar" type="button">⬆ Importar Excel</button>
+    <button class="btn" id="mostrar" type="button">👁 Mostrar todo</button>
+    <button class="btn btn-success" id="descargar" type="button">⬇ Descargar .xlsx</button>
+    <input id="archivo" type="file" accept=".xlsx,.xls" hidden>
+  </header>
+  <main class="sheet-wrap" id="hoja" aria-live="polite"></main>
+  <footer class="tabs-bottom"><span class="sheet-tab" id="nombre-hoja">Asistencia</span><span class="hint" id="estado"></span></footer>
+  <script type="module" src="js/excel-view.js"></script>
+</body>
+</html>

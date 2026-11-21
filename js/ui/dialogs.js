@@ -32,7 +32,7 @@ function newDialog(extraClass = "") {
 /* ------------------------------------------------------------------ */
 
 export class RegistrationDialog {
-  constructor({ engine, openCamera, courseName, isTaken, findDuplicate, onSaved }) {
+  constructor({ engine, openCamera, courseName, isTaken, findDuplicate, onSaved, prefill = null }) {
     this._engine = engine;
     this._openCamera = openCamera;
     this._camera = null;
@@ -47,6 +47,11 @@ export class RegistrationDialog {
     this._identity = null;
     this._banner = null;
     this._build();
+    if (prefill) { // estudiante importado: solo falta el rostro
+      this._cedula.value = prefill.cedula; this._name.value = prefill.name;
+      this._cedula.readOnly = true; this._name.readOnly = true;
+      this._updateCedulaHint();
+    }
     this._close = openDialog(this._dialog, () => this._release());
   }
 

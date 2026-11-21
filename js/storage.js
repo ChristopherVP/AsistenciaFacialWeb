@@ -116,6 +116,9 @@ export class CourseRepository {
     return repository;
   }
 
+  /** Relee los cursos (los pudo cambiar la hoja de Excel en otra pestaña). */
+  async reload() { this._courses = (await CourseRepository.load())._courses; }
+
   get courses() {
     return [...this._courses.values()].sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
   }

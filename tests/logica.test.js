@@ -109,7 +109,7 @@ test("libro de asistencia + Excel: % con fórmula y celdas vacías antes del ing
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   assert.equal(sheet.A1.v, "Cédula");
   assert.equal(sheet.C1.v, "% Asistencia");
-  assert.match(sheet.C2.f, /^IF\(COUNT\(D2:XFD2\)=0/);
+  assert.match(sheet.C2.f, /^IF\(COUNT\(D2:E2\)=0/);
   assert.equal(sheet.D2.v, 1);
   assert.equal(sheet.D3, undefined);
   assert.equal(sheet.E3.v, 0);

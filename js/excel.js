@@ -31,7 +31,8 @@ export function buildSheet(XLSX, book) {
   });
   book.rows.forEach((row, index) => {
     const line = index + 2;
-    const span = `${columnLetter(FIRST_DATE_COLUMN)}${line}:XFD${line}`;
+    const lastDate = columnLetter(FIRST_DATE_COLUMN + Math.max(book.columns.length, 1) - 1);
+    const span = `${columnLetter(FIRST_DATE_COLUMN)}${line}:${lastDate}${line}`;
     put(1, line, { t: "s", v: row.id });
     put(2, line, { t: "s", v: row.name });
     put(PERCENT_COLUMN, line, {
@@ -42,9 +43,19 @@ export function buildSheet(XLSX, book) {
       if (mark !== undefined) put(FIRST_DATE_COLUMN + columnIndex, line, { t: "n", v: mark, s: CENTER });
     });
   });
-  const lastColumn = FIRST_DATE_COLUMN + Math.max(book.columns.length, 1) - 1;
+  (book.extras ?? []).forEach((extra, index) => {
+    const column = FIRST_DATE_COLUMN + book.columns.length + index;
+    put(column, 1, { t: "s", v: extra.title, s: HEADER_STYLE });
+    book.rows.forEach((row, rowIndex) => {
+      const text = extra.cells[row.id];
+      if (text === undefined) return;
+      if (text.startsWith("=")) put(column, rowIndex + 2, { t: "n", f: text.slice(1), s: CENTER });
+      else put(column, rowIndex + 2, Number.isFinite(Number(text)) ? { t: "n", v: Number(text), s: CENTER } : { t: "s", v: text });
+    });
+  });
+  const lastColumn = FIRST_DATE_COLUMN + Math.max(book.columns.length + (book.extras ?? []).length, 1) - 1;
   sheet["!ref"] = XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: lastColumn - 1, r: Math.max(book.rows.length, 1) } });
-  sheet["!cols"] = [{ wch: 16 }, { wch: 38 }, { wch: 15 }, ...book.columns.map(() => ({ wch: 18 }))];
+  sheet["!cols"] = [{ wch: 16 }, { wch: 38 }, { wch: 15 }, ...book.columns.map(() => ({ wch: 18 })), ...(book.extras ?? []).map(() => ({ wch: 18 }))];
   return sheet;
 }
 
