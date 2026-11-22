@@ -4,7 +4,8 @@ import { Gallery } from "../face-engine.js";
 import { downloadBlob } from "../backup.js";
 import { buildWorkbookBytes, loadXlsx } from "../excel.js";
 import {
-  courseAddSlot, courseAddStudent, courseRemoveSlot, courseRemoveStudent, createCourse, slotDaysText, slotMinutes,
+  activeSlotCount, courseAddSlot, courseAddStudent, courseRemoveSlot, courseRemoveStudent, courseReplaceSlot, courseSetAllSlots,
+  courseToggleSlot, createCourse, isSlotActive, slotDaysText, slotLabel, slotMinutes,
 } from "../models.js";
 import { excelFileName } from "../storage.js";
 import { CameraPreviewDialog, NameDialog, RegistrationDialog, SlotDialog } from "./dialogs.js";
@@ -53,10 +54,9 @@ export class CoursesTab {
       [{ key: "n", title: "#", align: "center", width: 50 }, { key: "cedula", title: "Cédula", align: "center", width: 150 }, { key: "nombre", title: "Apellidos y nombres" }],
       { height: 220, label: "Estudiantes" });
     this._slotsTable = new DataTable(
-      [{ key: "dias", title: "Días" }, { key: "inicio", title: "Inicio", align: "center", width: 90 }, { key: "fin", title: "Fin", align: "center", width: 90 }, { key: "duracion", title: "Duración", align: "center", width: 100 }],
-      { height: 130, label: "Horarios" });
-    this._enabled = h("input", { type: "checkbox", onChange: () => this._toggleSchedule() });
-    this._enabledText = h("span", {}, "○ DESACTIVADA");
+      [{ key: "dias", title: "Días" }, { key: "inicio", title: "Inicio", align: "center", width: 90 }, { key: "fin", title: "Fin", align: "center", width: 90 }, { key: "duracion", title: "Duración", align: "center", width: 100 }, { key: "estado", title: "Automática", align: "center", width: 130 }],
+      { height: 150, label: "Horarios" });
+    this._enabledText = h("span", { class: "hint", role: "status", "aria-live": "polite" }, "Sin horarios.");
     const section = (title, ...content) => h("div", { style: "margin-top:10px" }, card([h("h3", { class: "card-title" }, title), ...content]));
     return h("div", {},
       card(h("div", { class: "row-between" }, this._title, h("div", { class: "row" }, this._scheduleChip, this._studentsChip))),
@@ -70,14 +70,17 @@ export class CoursesTab {
           h("button", { type: "button", class: "btn", onClick: () => this._removeStudent() }, "Quitar seleccionado"),
           h("button", { type: "button", class: "btn btn-success", onClick: () => this._finishStudent() }, "✔  Terminar registro"))),
       section("⏰  Horario de lista automática",
-        h("div", { class: "row-between", style: "margin-bottom:6px" }, h("span", {}),
-          h("label", { class: "day-toggle wide" }, this._enabled, this._enabledText)),
+        h("div", { class: "row-between", style: "margin-bottom:6px;flex-wrap:wrap;gap:8px" }, this._enabledText,
+          h("div", { class: "row", style: "flex-wrap:wrap" },
+            h("button", { type: "button", class: "btn btn-success", onClick: () => this._setAllSlots(true) }, "✔  Activar todos"),
+            h("button", { type: "button", class: "btn", onClick: () => this._setAllSlots(false) }, "○  Desactivar todos"))),
         this._slotsTable.el,
         h("div", { class: "row", style: "margin-top:8px;flex-wrap:wrap" },
           h("button", { type: "button", class: "btn btn-primary", onClick: () => this._addSlot() }, "➕  Agregar horario"),
+          h("button", { type: "button", class: "btn", onClick: () => this._editSlot() }, "✏  Modificar horario"),
           h("button", { type: "button", class: "btn", onClick: () => this._removeSlot() }, "Quitar horario")),
         h("p", { class: "hint", style: "margin:8px 0 0" },
-          "La lista se toma sola dentro de cada intervalo, solo a los estudiantes de este curso. La aplicación debe estar abierta.")));
+          "La lista se toma sola dentro de cada horario activo, solo a los estudiantes de este curso. Use el botón de cada fila para activar o apagar un horario, o «Activar todos». La aplicación debe estar abierta.")));
   }
 
   get selectedId() { return this._selectedId; }
@@ -115,20 +118,32 @@ export class CoursesTab {
     if (course === null) return;
     this._title.textContent = course.name;
     this._excelName.value = excelFileName(course.name);
-    this._enabled.checked = course.schedule_enabled;
-    this._enabledText.textContent = course.schedule_enabled ? "● ACTIVADA" : "○ DESACTIVADA";
     const count = course.students.length;
     this._studentsChip.textContent = `${count} ESTUDIANTE${count === 1 ? "" : "S"}`;
+    const active = activeSlotCount(course);
+    this._enabledText.textContent = course.slots.length ? `${active} de ${course.slots.length} horario(s) con lista automática activa.` : "Sin horarios.";
     const [text, color] = !course.slots.length ? ["SIN HORARIO", GRAY]
-      : course.schedule_enabled ? ["AUTOMÁTICA ACTIVA", COLORS.success] : ["AUTOMÁTICA APAGADA", COLORS.accent];
+      : active > 0 ? ["AUTOMÁTICA ACTIVA", COLORS.success] : ["AUTOMÁTICA APAGADA", COLORS.accent];
     this._scheduleChip.textContent = text;
     this._scheduleChip.style.background = color;
     this._studentsTable.clear();
     course.students.forEach((student, index) => this._studentsTable.add([index + 1, student.student_id, student.embeddings.length ? student.name : `${student.name}   ⏳ Falta rostro`], student.student_id));
     this._studentsTable.setEmptyText("Aún no hay estudiantes. Pulse «Agregar estudiante».");
+    const keptSlot = this._slotsTable.selected;
     this._slotsTable.clear();
-    course.slots.forEach((slot, index) => this._slotsTable.add([slotDaysText(slot), slot.start, slot.end, `${slotMinutes(slot)} min`], String(index)));
+    course.slots.forEach((slot, index) => this._slotsTable.add(
+      [slotDaysText(slot), slot.start, slot.end, `${slotMinutes(slot)} min`, this._slotButton(course, slot, index)], String(index)));
     this._slotsTable.setEmptyText("Sin horarios.");
+    if (keptSlot !== null) this._slotsTable.select(keptSlot);
+  }
+
+  _slotButton(course, slot, index) {
+    const on = isSlotActive(course, slot);
+    return h("button", {
+      type: "button", class: on ? "btn btn-success" : "btn", style: "padding:3px 10px;min-width:104px", "aria-pressed": String(on),
+      "aria-label": `${on ? "Apagar" : "Activar"} la lista automática del horario ${slotLabel(slot)}`,
+      onClick: (event) => { event.stopPropagation(); this._toggleSlot(index); },
+    }, on ? "● Activa" : "○ Apagada");
   }
 
   async _saveUpdate(update) {
@@ -301,13 +316,28 @@ export class CoursesTab {
     await this._run((course) => courseRemoveSlot(course, Number(selected)));
   }
 
-  async _toggleSchedule() {
-    if (await this._locked()) { this._showSelected(); return; }
-    const enabled = this._enabled.checked;
+  async _editSlot() {
     const course = this._current();
-    if (enabled && course !== null && !course.slots.length) {
-      await showInfo("Agregue al menos un horario para que la lista automática funcione.", APP_TITLE);
-    }
-    await this._run((current) => createCourse({ ...current, schedule_enabled: enabled }));
+    if (course === null) { await showInfo("Seleccione un curso de la lista.", APP_TITLE); return; }
+    const selected = this._slotsTable.selected;
+    if (selected === null) { await showInfo("Seleccione el horario que desea modificar.", APP_TITLE); return; }
+    if (await this._locked()) return;
+    const index = Number(selected);
+    const slot = course.slots[index];
+    if (!slot) { await showInfo("Ese horario ya no existe.", APP_TITLE); this._showSelected(); return; }
+    new SlotDialog((updated) => this._saveUpdate((current) => courseReplaceSlot(current, index, updated)), slot);
+  }
+
+  async _toggleSlot(index) {
+    if (await this._locked()) return;
+    await this._run((course) => courseToggleSlot(course, index));
+  }
+
+  async _setAllSlots(enabled) {
+    const course = this._current();
+    if (course === null) { await showInfo("Seleccione un curso de la lista.", APP_TITLE); return; }
+    if (!course.slots.length) { await showInfo("Agregue al menos un horario para que la lista automática funcione.", APP_TITLE); return; }
+    if (await this._locked()) return;
+    await this._run((current) => courseSetAllSlots(current, enabled));
   }
 }

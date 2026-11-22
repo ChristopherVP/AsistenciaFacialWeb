@@ -103,6 +103,24 @@ test("flujo completo de la interfaz: cuenta → cursos → horario → lista →
     assert.equal(repository.courses[0].slots[0].start, "07:00");
   });
 
+  await t.test("horarios: activar uno, modificarlo, activar todos y desactivar todos", async () => {
+    assert.equal(repository.courses[0].schedule_enabled, false);
+    click(await waitFor(() => byText("button", "Apagada"), "botón del horario"));
+    await waitFor(() => repository.courses[0].slots[0].enabled === true && repository.courses[0].schedule_enabled === true, "horario activado");
+    click(byText("tbody tr", "07:20"));
+    click(byText("button", "Modificar horario"));
+    const dialog = await waitFor(() => document.querySelector("dialog[open]"), "diálogo para modificar");
+    assert.match(dialog.textContent, /Modificar horario/);
+    click(byText("dialog button", "Cancelar"));
+    await waitFor(() => !document.querySelector("dialog[open]"), "diálogo cerrado");
+    click(byText("button", "Desactivar todos"));
+    await waitFor(() => repository.courses[0].schedule_enabled === false, "todos desactivados");
+    click(byText("button", "Activar todos"));
+    await waitFor(() => repository.courses[0].slots[0].enabled === true, "todos activados");
+    click(byText("button", "Desactivar todos"));
+    await waitFor(() => repository.courses[0].schedule_enabled === false, "todos desactivados otra vez");
+  });
+
   await t.test("lista: reconoce a la estudiante, guarda sola y escribe el libro", async () => {
     const student = createStudent("1710034065", "PEREZ GOMEZ ANA", [vector]);
     const updated = courseAddStudent(repository.courses[0], student);

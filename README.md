@@ -53,6 +53,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 - Create, rename and delete **courses**; each course has its own students, schedule and attendance sheet.
 - **Student registration with face scan**: guided capture of 5 frontal samples with an on-screen progress bar and **Spanish voice instructions** (Web Speech API), a mandatory consent checkbox and automatic **duplicate-face detection** against every student registered in any course under a different cédula.
 - Students are always listed **alphabetically by surname (A–Z)**.
+- **Several schedules per course**, each one with its own **Activa / Apagada** button, plus **Activar todos**, **Desactivar todos** and **Modificar horario** (edit days and times of an existing schedule without deleting it).
 - Students added from the Excel tab or imported from an Excel file stay **pending** (`⏳ Falta rostro`) until they finish their face scan with **✔ Terminar registro**.
 
 **Attendance**
@@ -94,8 +95,8 @@ The user interface is in **Spanish**. After the first visit the app works **with
 | FR-03 | Create, rename and delete courses with unique (case-insensitive) names. |
 | FR-04 | Register students with cédula, name and a guided face scan of 5 frontal samples; reject duplicated cédulas and faces already registered under another cédula in any course. |
 | FR-05 | Recognize students through the camera and mark them present after consecutive confirmations. |
-| FR-06 | Define weekly time slots per course (each one **at most 1 hour long**) and run **automatic attendance lists** inside them, once per day. |
-| FR-07 | Notify the user before a scheduled list (system notification 5 minutes before, voice 1 minute before). |
+| FR-06 | Define weekly time slots per course (each one **at most 40 minutes long**), edit them, turn each one on or off individually (or all at once) and run **automatic attendance lists** inside the active ones, once per day. |
+| FR-07 | Notify the user before a scheduled list (system notification and voice; 5 and 1 minutes before by default, configurable in *Ajustes*). |
 | FR-08 | Keep one attendance book per course with one column per list and a percentage column. |
 | FR-09 | Show the book in an **Excel-style editor** with editable cells, extra columns, formulas, row and column insertion and deletion, undo / redo and clipboard support. |
 | FR-10 | Hide rows and columns and restore them from a toolbar, a context menu or the keyboard. |
@@ -207,7 +208,7 @@ The main window has a header (logo, user name, **Día/Noche** theme button, **Ce
 2. **Create a course.** *📚 Cursos → ➕ Nuevo curso*. Each course gets its own Excel file. Courses can be renamed (✏) or deleted (🗑); deleting a course also deletes its stored attendance.
 3. **Register students.** Select the course and press **➕ Agregar estudiante**. Enter the cédula and the full name (surnames first, e.g. `PÉREZ GÓMEZ JUAN CARLOS`), tick the consent box, press **Iniciar escaneo facial** and look at the camera: the system captures 5 frontal samples and guides you by voice. **Quitar seleccionado** removes a student.
 4. **Finish a pending registration.** Students shown as `⏳ Falta rostro` (added from the Excel tab or imported) are selected in the list and completed with **✔ Terminar registro**.
-5. **Set a schedule** *(optional)*. In *⏰ Horario de lista automática* press **➕ Agregar horario**, pick the weekdays and the start and end times (a list lasts **at most 1 hour**: the end time follows the start time and is capped automatically), and turn the automatic list on. The course chip shows *SIN HORARIO*, *AUTOMÁTICA APAGADA* or *AUTOMÁTICA ACTIVA*.
+5. **Set a schedule** *(optional)*. In *⏰ Horario de lista automática* press **➕ Agregar horario**, pick the weekdays and the start and end times (a list lasts **at most 40 minutes**: the end time follows the start time and is capped automatically). Each row has its own **● Activa / ○ Apagada** button, so you can turn on a single schedule; **✔ Activar todos** and **○ Desactivar todos** change every schedule at once, and **✏ Modificar horario** edits the selected row (it keeps its on/off state). The course chip shows *SIN HORARIO*, *AUTOMÁTICA APAGADA* or *AUTOMÁTICA ACTIVA* (at least one schedule on).
 6. **Take attendance.** *📷 Tomar lista*: type or pick the course, press start and let the camera recognize the students. Press **■ Finalizar y guardar** to close the list; absent students are saved as `0`. The list also closes by itself when everybody is present or, for automatic lists, when the time slot ends.
 7. **View, edit or download the Excel.** In *📚 Cursos* press **👁 Ver Excel** (opens that course in the *📊 Excel* tab) or **⬇ Descargar**.
 8. **Settings.** *⚙ Ajustes*: choose and test the camera, pick the theme, request or fix the **device permissions** (camera and notifications, with guides for PC, Android and iPhone), install the app and manage one-click login.
@@ -290,14 +291,16 @@ The `.xlsx` is built with a local copy of SheetJS (`xlsx-js-style`): blue bold h
 ## Automatic Lists and Reminders
 
 **Automatic lists** (*Cursos → Horario de lista automática*)
-- Each course can have several weekly slots (weekdays, start, end), each lasting **at most 1 hour**. With the schedule turned on, the list starts by itself the first time the app sees the current time inside a slot, **once per day** per course.
+- Each course can have several weekly slots (weekdays, start, end), each lasting **at most 40 minutes** and each with its own on/off switch: only the **active** slots start lists and send reminders. A slot added to a course whose automatic list is off starts off, and one added to a course that already has active slots starts on. With the schedule turned on, the list starts by itself the first time the app sees the current time inside a slot, **once per day** per course.
 - Only students with a completed face registration take part. If none has one, the list is skipped with a notice.
 - The camera opens, the window is focused, a voice announces the list and a countdown shows the time left. One minute before the slot ends a voice warns the class, and the list is saved when the slot ends.
 - The app (or its installed window) must be **open and signed in**: browsers throttle or suspend timers in closed or hidden tabs.
 
 **Reminders** (`reminders.js`)
-- **5 minutes before** a scheduled list a system notification is shown (requires the permission granted in *Ajustes → Permiso de notificaciones*; optional). Tapping it opens or focuses the app.
-- **1 minute before** a voice says that the scheduled list of the course will start soon (no permission needed, and it stays silent if a list is already running).
+- **5 minutes before** (default; 2, 3, 5, 10 or 15 can be chosen in *Ajustes → Permiso de notificaciones*) a scheduled list a system notification is shown (requires the permission; optional). Tapping it opens or focuses the app.
+- **1 minute before** (default; 1, 2 or 3 can be chosen) a voice says that the scheduled list of the course will start soon (no permission needed, and it stays silent if a list is already running).
+- **No sudden alerts:** each reminder is only given if the app had already seen the schedule *before* that reminder's window began. A schedule created, turned on or opened inside the window does not fire the notification at once; only the reminder that can still arrive on time is given (for example, a schedule created 3 minutes ahead gets only the voice, at 1 minute before).
+- A minimized or hidden window may run its clock more slowly (browser power saving), so a reminder can arrive up to about a minute late.
 - Each reminder is sent once per day, even with several windows open. If the installed app is in use, it is the one that notifies and the browser tab stays quiet.
 
 ---
@@ -356,7 +359,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | **Password** | 8–64 characters; must match its confirmation. |
 | **Security question / answer** | One question from the list; answer of at least 3 characters. |
 | **Course name** | Not empty, up to 60 characters, unique (case-insensitive). |
-| **Schedule slot** | At least one weekday; end time later than start time (`HH:MM`); **at most 60 minutes** long. Courses saved earlier with longer slots are still read correctly. |
+| **Schedule slot** | Stored with an `enabled` flag (on/off); at least one weekday; end time later than start time (`HH:MM`); **at most 40 minutes** long. Courses saved earlier with longer slots are still read correctly. |
 | **Attendance cell** | `0`, `1` or empty. |
 | **Imported file** | Needs a *Cédula* column and a name column; rows with an invalid cédula or without a name are skipped and reported. |
 | **Face registration** | Frontal faces only, score ≥ 0.9, 5 samples, 60 s limit, no duplicate face. |
@@ -369,7 +372,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | Module | Responsibility |
 |--------|----------------|
 | `config.js` | Constants: models, thresholds, precision levels, validation limits, security questions, colors, database name. |
-| `models.js` | Immutable domain: `createStudent`, `createCourse`, `createSlot`, schedule helpers, `DEFAULT_SETTINGS` and `courseFromDict` (also reads desktop-version JSON). |
+| `models.js` | Immutable domain: `createStudent`, `createCourse`, `createSlot` (with its `enabled` flag), schedule helpers (`courseAddSlot`, `courseReplaceSlot`, `courseToggleSlot`, `courseSetAllSlots`, `courseRemoveSlot`), `DEFAULT_SETTINGS` and `courseFromDict` (also reads desktop-version JSON and courses saved before per-slot switches). |
 | `validators.js` / `errors.js` | Input validation (cédula, names, username, password, answers) and typed errors. |
 | `auth.js` | `UserRepository` and `LoginThrottle`: PBKDF2 hashing, login throttling, remembered users, password recovery. |
 | `storage.js` | IndexedDB wrapper and repositories: `CourseRepository`, `BookRepository`, `SettingsRepository`, plus `excelFileName`. |
@@ -424,6 +427,7 @@ Each course has one *book*:
 |-------|-----|---------|
 | `localStorage` | `af_theme` | Chosen theme (light or dark). |
 | `localStorage` | `af_reminders` | Reminders already sent today (shared between windows). |
+| `localStorage` | `af_reminder_leads` | Chosen minutes for the notification and the voice reminder. |
 | `localStorage` | `af_app_seen` | The installed app was opened recently (so only one window notifies). |
 | `sessionStorage` | `af_user`, `af_tab`, `af_course` | Keep the session, the tab and the course when the page reloads; cleared on logout. |
 
@@ -470,7 +474,7 @@ Defined in `js/config.js`:
 | `PBKDF2_ITERATIONS` | 200,000 | Password hashing cost. |
 | `MAX_LOGIN_ATTEMPTS` / `LOCKOUT_SECONDS` | 5 / 30 | Brute-force protection. |
 | `NOTICE_MS` | 4000 | Duration of on-screen notices. |
-| `MAX_SLOT_MINUTES` | 60 | Longest allowed duration of a scheduled list. |
+| `MAX_SLOT_MINUTES` | 40 | Longest allowed duration of a scheduled list. |
 | `EXCEL_SUFFIX` | `_ListaAsistencia.xlsx` | File name suffix of each course's Excel. |
 
 ---
@@ -526,10 +530,11 @@ npm test
 | `logica.test.js` | Cédula, names and usernames, schedules, scheduler, `Gallery` matching, attendance session and book, face enrollment, users and login throttling (real PBKDF2), courses, voice selection, virtual cameras. |
 | `sheet-model.test.js` | Import merge, formulas and percentages, hiding and mark validation. |
 | `excel-tab.test.js` | The Excel tab: files per course, opening a sheet, multiple selection, hiding and deleting. |
-| `reminders.test.js` | Notification 5 minutes before and voice 1 minute before, permission and duplicate rules, installed app versus browser. |
+| `reminders.test.js` | Notification and voice at the chosen minutes (5 and 1 by default), no sudden alerts for schedules created inside the window, permission, duplicate and on/off rules, installed app versus browser. |
 | `pwa.test.js` | Service worker file list, every JS module cached, installable manifest. |
 | `theme.test.js` | Light / dark theme persistence. |
-| `permisos-horario.test.js` | Device detection and permission texts, the 1-hour slot limit (and legacy courses) and the schedule dialog. |
+| `permisos-horario.test.js` | Device detection and permission texts, the 40-minute slot limit (and legacy courses) and the schedule dialog. |
+| `horarios.test.js` | Per-slot on/off, activate / deactivate all, editing a slot, reading courses saved before per-slot switches and the edit dialog. |
 | `ui.test.js` | Full interface flow: account → courses → schedule → attendance list → Excel. |
 
 Manual check:
@@ -538,7 +543,7 @@ Manual check:
 3. Open the *Excel* tab, edit a cell, add a column with `=SUM(D2:E2)` and reload: the changes persist.
 4. Import an `.xlsx`, check that students are sorted by surname and marked `⏳ Falta rostro` in *Cursos*.
 5. Download the `.xlsx` and edit it: the program's data must not change.
-6. Set a slot a few minutes ahead and turn on the automatic list: you should get the reminders and the list should start by itself.
+6. Set a slot about 10 minutes ahead and turn on the automatic list (or choose 2 and 1 minutes in *Ajustes* and use a slot 4 minutes ahead): the notification must come at the chosen minutes, the voice 1 minute before, and the list must start by itself.
 7. With the app already open, go offline in DevTools and reload: it must keep working.
 
 ---

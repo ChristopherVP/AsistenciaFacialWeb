@@ -7,7 +7,8 @@ import { PLATFORMS, detectPlatform, helpSteps, notificationState } from "../perm
 import { CameraPreviewDialog } from "./dialogs.js";
 import { h } from "./dom.js";
 import { THEMES, getThemePreference, setThemePreference } from "../theme.js";
-import { NOTICE_MINUTES, notificationStatus, requestNotifications } from "./reminders.js";
+import { ValidationError } from "../errors.js";
+import { NOTIFY_CHOICES, VOICE_CHOICES, getReminderLeads, notificationStatus, requestNotifications, saveReminderLeads } from "./reminders.js";
 import { showError } from "./messagebox.js";
 import { card } from "./widgets.js";
 
@@ -140,6 +141,35 @@ export class SettingsTab {
   _buildNotifications() {
     this._notifyStatus = h("p", { class: "hint", style: "margin:8px 0 0", role: "status", "aria-live": "polite" }, notificationStatus());
     const item = (title, text) => h("li", { style: "margin:6px 0" }, h("strong", {}, `${title} `), text);
+    const leads = getReminderLeads();
+    const choice = (values, current) => {
+      const select = h("select", { class: "input", style: "width:auto" }, values.map((value) => h("option", { value: String(value) }, `${value} min antes`)));
+      select.value = String(current);
+      return select;
+    };
+    this._notifySelect = choice(NOTIFY_CHOICES, leads.notifyMinutes);
+    this._voiceSelect = choice(VOICE_CHOICES, leads.voiceMinutes);
+    this._leadStatus = h("span", { class: "hint", role: "status", "aria-live": "polite" });
+    this._noticeTitle = h("strong", {});
+    this._voiceTitle = h("strong", {});
+    const syncLeadTexts = () => {
+      const current = getReminderLeads();
+      this._noticeTitle.textContent = `${current.notifyMinutes} minutos antes de una lista programada. `;
+      this._voiceTitle.textContent = `${current.voiceMinutes} ${current.voiceMinutes === 1 ? "minuto" : "minutos"} antes. `;
+    };
+    syncLeadTexts();
+    const saveLeads = () => {
+      try {
+        saveReminderLeads({ notifyMinutes: Number(this._notifySelect.value), voiceMinutes: Number(this._voiceSelect.value) });
+      } catch (error) {
+        if (!(error instanceof ValidationError)) throw error;
+        this._leadStatus.textContent = `⚠ ${error.message}`;
+        return;
+      }
+      syncLeadTexts();
+      this._notifyStatus.textContent = notificationStatus();
+      this._leadStatus.textContent = "✔ Avisos guardados.";
+    };
     return card([
       h("h2", { class: "card-title" }, "🔔  Permiso de notificaciones"),
       h("p", { class: "hint", style: "margin:4px 0 10px" },
@@ -147,11 +177,19 @@ export class SettingsTab {
       h("button", { type: "button", class: "btn", onClick: async () => { await requestNotifications(); await this.refreshPermissions(); } }, "🔔  Dar permiso de notificaciones"),
       this._notifyStatus,
       this._guide("📖  Cómo activar las notificaciones en su dispositivo", "notifications"),
+      h("h3", { style: "margin:16px 0 6px;font-size:15px" }, "¿Con cuánta anticipación avisar?"),
+      h("div", { class: "row", style: "flex-wrap:wrap" },
+        h("label", { class: "row" }, "Notificación:", this._notifySelect),
+        h("label", { class: "row" }, "Voz:", this._voiceSelect),
+        h("button", { type: "button", class: "btn", onClick: saveLeads }, "💾  Guardar avisos"),
+        this._leadStatus),
+      h("p", { class: "hint", style: "margin:6px 0 0" },
+        "Los avisos solo salen si el programa ya estaba abierto antes de esa hora. Si crea o activa un horario cuando faltan menos minutos que el aviso, ese aviso no se da de golpe: solo se da el que todavía llegue a tiempo."),
       h("h3", { style: "margin:16px 0 4px;font-size:15px" }, "¿Qué le notificará el programa y por qué?"),
       h("ul", { style: "margin:0;padding-left:20px;font-size:14px;line-height:1.45" },
-        item(`Cinco minutos antes de una lista programada (${NOTICE_MINUTES} min).`,
+        h("li", { style: "margin:6px 0" }, this._noticeTitle,
           "Aparece un aviso con el nombre del curso y la hora. Al tocarlo se abre el programa para que inicie sesión. Sirve porque la lista automática solo arranca si el programa está abierto con la sesión iniciada."),
-        item("Un minuto antes.", "Una voz anuncia «Pronto iniciará la lista programada del curso …». Esto es un sonido del programa, no una notificación, y no necesita permiso."),
+        h("li", { style: "margin:6px 0" }, this._voiceTitle, "Una voz anuncia «Pronto iniciará la lista programada del curso …». Esto es un sonido del programa, no una notificación, y no necesita permiso."),
         item("Solo si el programa está abierto.", "Puede estar minimizado, pero si lo cierra o el equipo está apagado o suspendido no se puede avisar."),
         item("Un solo aviso.", "Si tiene la aplicación instalada, avisa la aplicación y el navegador no. Si no la tiene instalada, avisa el navegador."),
         item("Nada más.", "No envía publicidad, no escribe a los estudiantes y no manda ningún dato fuera de este dispositivo."),

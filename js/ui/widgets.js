@@ -117,7 +117,8 @@ export class DataTable {
 
   add(values, id, tag = "") {
     const row = h("tr", { tabindex: this._rows.size === 0 ? "0" : "-1", class: tag ? `t-${tag}` : "", "aria-selected": "false", dataset: { id } },
-      this._columns.map((column, index) => h("td", { class: column.align === "center" ? "center" : "" }, String(values[index] ?? ""))));
+      this._columns.map((column, index) => h("td", { class: column.align === "center" ? "center" : "" },
+        typeof Node !== "undefined" && values[index] instanceof Node ? values[index] : String(values[index] ?? ""))));
     row.addEventListener("click", () => this.select(id, true));
     this._rows.set(id, row);
     this._body.append(row);

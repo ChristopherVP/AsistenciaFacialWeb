@@ -1,7 +1,8 @@
 import { DAY_LABELS } from "./config.js";
 import { formatDayMonth, isoDate, parseTime, slotContains, weekday } from "./models.js";
 
-export const activeSlot = (course, now) => course.slots.find((slot) => slotContains(slot, now)) ?? null;
+export const activeSlot = (course, now) =>
+  course.slots.find((slot) => slot.enabled !== false && slotContains(slot, now)) ?? null;
 
 export function dueCourses(courses, now) {
   const today = isoDate(now);
@@ -24,7 +25,7 @@ export function nextRun(course, now) {
     const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
     if (offset === 0 && course.last_auto_date === isoDate(day)) continue;
     for (const slot of course.slots) {
-      if (!slot.days.includes(weekday(day))) continue;
+      if (slot.enabled === false || !slot.days.includes(weekday(day))) continue;
       const start = atMinutes(day, parseTime(slot.start));
       const end = atMinutes(day, parseTime(slot.end));
       if (end <= now) continue;
