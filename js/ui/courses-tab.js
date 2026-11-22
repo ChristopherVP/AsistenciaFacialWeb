@@ -212,8 +212,7 @@ export class CoursesTab {
   _viewExcel() {
     const course = this._current();
     if (course === null) return;
-    if (this.onViewExcel) this.onViewExcel(course.course_id);
-    else window.open(`excel.html#${course.course_id}`, "_blank");
+    this.onViewExcel?.(course.course_id);
   }
 
   async _downloadExcel() {

@@ -1,38 +1,30 @@
-import { downloadBlob } from "./backup.js";
-import { buildWorkbookBytes, loadXlsx } from "./excel.js";
-import { parseWorkbook } from "./excel-import.js";
-import { courseAddStudent, createStudent } from "./models.js";
-import * as sheet from "./sheet-model.js";
-import { BookRepository, CourseRepository, excelFileName } from "./storage.js";
-import { h } from "./ui/dom.js";
-import { normalizeFullName, validateCedula } from "./validators.js";
+import { downloadBlob } from "../backup.js";
+import { buildWorkbookBytes, loadXlsx } from "../excel.js";
+import { parseWorkbook } from "../excel-import.js";
+import { courseAddStudent, createStudent, formatDateTime } from "../models.js";
+import * as sheet from "../sheet-model.js";
+import { excelFileName } from "../storage.js";
+import { normalizeFullName, validateCedula } from "../validators.js";
+import { h } from "./dom.js";
+import { showInfo, showError } from "./messagebox.js";
 
 const REFRESH_MS = 2000;
-const books = new BookRepository();
-const channel = globalThis.BroadcastChannel ? new BroadcastChannel("af-courses") : null;
-const $ = (id) => document.getElementById(id);
-const box = $("hoja"); const select = $("curso"); const status = $("estado");
-const embedded = new URLSearchParams(location.search).has("embed") && window.parent !== window;
-if (embedded) document.body.classList.add("embed");
-const past = []; const future = [];
-let repository = null; let courses = []; let current = null; let book = null; let lastJson = "";
-let menu = null; let editing = null; let dragging = null; let selMode = "cell"; let baseStatus = "";
-let grid = { cols: [], rows: [] }; let anchor = { c: 0, r: 1 }; let focus = { c: 0, r: 1 };
+const SHEET_HTML = "<header class=\"bar\"><button class=\"btn\" id=\"volver\" type=\"button\">← Volver</button><h1 id=\"titulo\"></h1><button class=\"btn btn-success\" id=\"descargar\" type=\"button\">⬇ Descargar .xlsx</button><input id=\"archivo\" type=\"file\" accept=\".xlsx,.xls\" hidden></header><nav class=\"tools\" aria-label=\"Herramientas de la hoja\">\n    <div class=\"group\"><button id=\"deshacer\" type=\"button\" title=\"Deshacer (Ctrl+Z)\">↶ Deshacer</button><button id=\"rehacer\" type=\"button\" title=\"Rehacer (Ctrl+Y)\">↷ Rehacer</button></div>\n    <div class=\"group\"><button id=\"importar\" type=\"button\">⬆ Importar</button></div>\n    <div class=\"group\"><button id=\"col-nueva\" type=\"button\">➕ Columna</button><button id=\"col-borrar\" type=\"button\" title=\"Elimina la columna de la celda activa\">🗑 Eliminar columnas</button></div>\n    <div class=\"group\"><button id=\"est-nuevo\" type=\"button\">➕ Fila (estudiante)</button><button id=\"fila-borrar\" type=\"button\" title=\"Elimina la fila de la celda activa\">🗑 Eliminar filas</button></div>\n    <div class=\"group\"><button id=\"ocultar-col\" type=\"button\">🙈 Ocultar columnas</button><button id=\"ocultar-fila\" type=\"button\">🙈 Ocultar filas</button><button id=\"mostrar\" type=\"button\">👁 Mostrar todo</button></div>\n  </nav>\n  <div class=\"fbar\"><input id=\"celda\" aria-label=\"Celda activa\" readonly><strong>fx</strong><input id=\"formula\" aria-label=\"Contenido de la celda\" placeholder=\"Seleccione una celda. Fórmulas: =SUM(D2:F2), =AVERAGE, =MIN, =MAX, =COUNT, =MEDIAN, =ROUND(D2/3,1)\"></div>\n  <main class=\"sheet-wrap\" id=\"hoja\" aria-live=\"polite\"></main><footer class=\"tabs-bottom\"><span class=\"sheet-tab\" id=\"nombre-hoja\">Asistencia</span><span class=\"hint\" id=\"estado\"></span></footer>";
+const TYPE_TEXT = "Hoja de cálculo de Excel";
 
-document.head.append(h("style", {}, `
-  .sheet { user-select: none; -webkit-user-select: none; cursor: cell; }
-  .sheet td.sel { background: #DCE9F5 !important; outline: 0; }
-  .sheet td.head.sel { background: #2F6EA8 !important; }
-  .sheet td.cur:not(.head) { background: #fff !important; }
-  .sheet td.cur { outline: 2px solid #1E7B46 !important; outline-offset: -2px; }
-  .sheet th.hl { background: #CFE0F1 !important; font-weight: 700; }
-  .sheet td[contenteditable="true"] { user-select: text; -webkit-user-select: text; cursor: text; background: #fff !important; }
-  #hoja:focus { outline: 0; }`));
-box.tabIndex = 0;
-$("ocultar-col").after(h("button", { id: "ocultar-fila", type: "button" }, "🙈 Ocultar filas"));
-$("ocultar-col").textContent = "🙈 Ocultar columnas";
-$("col-borrar").textContent = "🗑 Eliminar columnas";
-$("fila-borrar").textContent = "🗑 Eliminar filas";
+/** Hoja de asistencia de UN curso (editable como Excel). Devuelve { refresh, destroy }. */
+function mountSheet(root, { state, courseId, onBack }) {
+  root.innerHTML = SHEET_HTML;
+  const $ = (id) => root.querySelector(`#${id}`);
+  const books = state.bookRepository;
+  const offs = [];
+  const on = (target, type, handler) => { target.addEventListener(type, handler); offs.push(() => target.removeEventListener(type, handler)); };
+  const box = $("hoja"); const status = $("estado");
+  const past = []; const future = [];
+  let current = state.repository.get(courseId); let book = null; let lastJson = "";
+  let menu = null; let editing = null; let dragging = null; let selMode = "cell"; let baseStatus = "";
+  let grid = { cols: [], rows: [] }; let anchor = { c: 0, r: 1 }; let focus = { c: 0, r: 1 };
+  box.tabIndex = 0;
 
 const say = (message) => { status.textContent = message; };
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -47,16 +39,6 @@ const textAt = (c, r) => (r === 0 ? sheet.titleOf(book, grid.cols[c]) : String(s
 const rawAt = (c, r) => (r === 0 ? sheet.titleOf(book, grid.cols[c]) : sheet.rawOf(book, grid.cols[c], rowAt(r)));
 const cellRef = (c, r) => `${sheet.columnLetterOf(grid.cols[c])}${r === 0 ? 1 : book.rows.indexOf(rowAt(r)) + 2}`;
 const round2 = (n) => Math.round(n * 100) / 100;
-
-/* ---------- Volver al programa (siempre regresa) ---------- */
-
-function goBack() {
-  if (embedded) { parent.postMessage("af-volver", location.origin); return; } // dentro del programa: vuelve a la pestaña anterior
-  try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch { /* el navegador puede negar el foco */ }
-  window.close();
-  // Si el navegador no deja cerrar esta pestaña, se vuelve al programa en la misma pestaña (la sesión y la pestaña se restauran).
-  setTimeout(() => { location.href = "./index.html"; }, 300);
-}
 
 /* ---------- Dibujo ---------- */
 
@@ -147,9 +129,9 @@ async function addPending(list) {
   const fresh = list.filter((s) => !have.has(s.id));
   if (!fresh.length) return 0;
   const course = fresh.reduce((acc, s) => courseAddStudent(acc, createStudent(s.id, s.name, [])), current);
-  await repository.save(course);
+  await state.repository.save(course);
   current = course;
-  channel?.postMessage("changed");
+  state.notifyCoursesChanged();
   return fresh.length;
 }
 
@@ -279,13 +261,13 @@ box.addEventListener("mousedown", (event) => {
   setSelection(event.shiftKey ? anchor : point, point, point.mode);
   dragging = point.mode;
 });
-document.addEventListener("mousemove", (event) => {
+on(document, "mousemove", (event) => {
   if (!dragging) return;
   if (event.buttons === 0) { dragging = null; return; }
   const point = hit(event.target);
   if (point && point.mode === dragging) setSelection(anchor, point, dragging);
 });
-document.addEventListener("mouseup", () => { dragging = null; });
+on(document, "mouseup", () => { dragging = null; });
 box.addEventListener("dblclick", (event) => { const point = hit(event.target); if (point?.mode === "cell") startEdit(point.c, point.r); });
 box.addEventListener("focusout", (event) => { if (editing && event.target === editing.td) commitEdit(); });
 box.addEventListener("contextmenu", (event) => {
@@ -352,10 +334,10 @@ box.addEventListener("keydown", (event) => {
   else if (key.length === 1 && !event.altKey) { event.preventDefault(); startEdit(focus.c, focus.r, key); }
 });
 
-const boxIsActive = () => !editing && book && [box, document.body].includes(document.activeElement);
-document.addEventListener("copy", (event) => { if (boxIsActive()) { event.clipboardData.setData("text/plain", selectionText()); event.preventDefault(); } });
-document.addEventListener("cut", (event) => { if (boxIsActive()) { event.clipboardData.setData("text/plain", selectionText()); event.preventDefault(); clearSelection(); } });
-document.addEventListener("paste", (event) => { if (boxIsActive()) { event.preventDefault(); pasteText(event.clipboardData.getData("text/plain")); } });
+const boxIsActive = () => !editing && book && document.activeElement === box;
+on(document, "copy", (event) => { if (boxIsActive()) { event.clipboardData.setData("text/plain", selectionText()); event.preventDefault(); } });
+on(document, "cut", (event) => { if (boxIsActive()) { event.clipboardData.setData("text/plain", selectionText()); event.preventDefault(); clearSelection(); } });
+on(document, "paste", (event) => { if (boxIsActive()) { event.preventDefault(); pasteText(event.clipboardData.getData("text/plain")); } });
 
 $("formula").addEventListener("keydown", (event) => {
   if (!book) return;
@@ -375,37 +357,27 @@ async function download() {
   downloadBlob(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), excelFileName(current.name));
 }
 
-async function show() {
-  const changedCourse = !current || current.course_id !== select.value;
-  current = courses.find((c) => c.course_id === select.value) ?? null;
-  $("descargar").disabled = current === null;
+
+async function sync(force = false) {
+  if ((editing || dragging) && !force) return;
+  const course = state.repository.get(courseId);
+  if (!course) { onBack(); return; } // el curso se eliminó
+  current = course;
+  const stored = await books.get(courseId);
+  const next = stored ? sheet.normalize(stored) : null;
+  if (!force && JSON.stringify(next) === lastJson) return;
   past.length = 0; future.length = 0;
-  if (changedCourse) { anchor = { c: 0, r: 1 }; focus = { c: 0, r: 1 }; }
-  if (!current) { book = null; render(); return; }
-  history.replaceState(null, "", `#${current.course_id}`);
-  const stored = await books.get(current.course_id);
-  book = stored ? sheet.normalize(stored) : null;
+  book = next;
   lastJson = JSON.stringify(book);
+  $("titulo").textContent = `📗  ${excelFileName(current.name)}`;
   $("nombre-hoja").textContent = (book?.sheet_title || current.name).slice(0, 31);
+  $("descargar").disabled = false;
   render();
 }
 
-async function reload(force = false) {
-  if ((editing || dragging) && !force) return;
-  repository = await CourseRepository.load();
-  courses = repository.courses;
-  const wanted = location.hash.slice(1) || select.value;
-  select.replaceChildren(...courses.map((c) => h("option", { value: c.course_id }, c.name)));
-  select.value = courses.some((c) => c.course_id === wanted) ? wanted : (courses[0]?.course_id ?? "");
-  const stored = current ? await books.get(select.value) : null;
-  if (force || !current || select.value !== current.course_id || JSON.stringify(stored ? sheet.normalize(stored) : null) !== lastJson) await show();
-  else current = courses.find((c) => c.course_id === select.value) ?? current;
-}
-
-document.addEventListener("click", closeMenu);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeMenu(); });
-select.addEventListener("change", show);
-$("volver").addEventListener("click", goBack);
+on(document, "click", closeMenu);
+on(document, "keydown", (event) => { if (event.key === "Escape") closeMenu(); });
+$("volver").addEventListener("click", onBack);
 $("col-nueva").addEventListener("click", newColumn);
 $("est-nuevo").addEventListener("click", addStudent);
 $("mostrar").addEventListener("click", () => apply(sheet.showAll));
@@ -418,7 +390,96 @@ $("ocultar-col").addEventListener("click", hideCols);
 $("ocultar-fila").addEventListener("click", hideRows);
 $("importar").addEventListener("click", () => $("archivo").click());
 $("archivo").addEventListener("change", (event) => { const [file] = event.target.files; event.target.value = ""; if (file) importFile(file); });
-if (channel) channel.onmessage = () => reload();
-window.addEventListener("hashchange", () => reload(true)); // el programa cambia de curso con #idCurso
-reload(true);
-setInterval(() => { if (!document.hidden && !menu) reload(); }, REFRESH_MS);
+sync(true);
+const timer = setInterval(() => { if (!document.hidden && root.offsetParent !== null && !menu) sync(); }, REFRESH_MS);
+return {
+  refresh: () => sync(),
+  destroy() { clearInterval(timer); offs.forEach((off) => off()); closeMenu(); },
+};
+}
+
+/** Pestaña Excel: lista de archivos (uno por curso, como carpeta de documentos) y editor al abrir uno. */
+export class ExcelTab {
+  constructor(state) {
+    this._state = state;
+    this._sheet = null;
+    this._selected = null;
+    this._token = 0;
+    this.el = h("div", { class: "excel-tab" });
+    state.subscribe(() => (this._sheet ? this._sheet.refresh() : this._renderList()));
+    this._renderList();
+  }
+
+  activate() { if (!this._sheet) this._renderList(); }
+
+  open(courseId) {
+    if (!this._state.repository.get(courseId)) return;
+    this._sheet?.destroy();
+    this._token += 1;
+    const root = h("div", { class: "xl-root" });
+    this.el.replaceChildren(root);
+    this._sheet = mountSheet(root, { state: this._state, courseId, onBack: () => this._back() });
+  }
+
+  _back() {
+    this._sheet?.destroy();
+    this._sheet = null;
+    this._renderList();
+  }
+
+  async _renderList() {
+    const token = ++this._token;
+    const courses = this._state.repository.courses;
+    const stored = await Promise.all(courses.map((course) => this._state.bookRepository.get(course.course_id).catch(() => null)));
+    if (token !== this._token || this._sheet) return;
+    if (!courses.some((course) => course.course_id === this._selected)) this._selected = null;
+    const rows = courses.map((course, index) => {
+      const book = stored[index];
+      const last = book?.columns?.length ? formatDateTime(new Date(Math.max(...book.columns.map((c) => c.moment)))) : "—";
+      const row = h("tr", { tabindex: "0", "aria-selected": String(course.course_id === this._selected) },
+        h("td", {}, h("span", { class: "xl-name" }, h("span", { "aria-hidden": "true" }, "📗"), excelFileName(course.name))),
+        h("td", {}, last), h("td", { class: "center" }, String(book?.rows?.length ?? course.students.length)),
+        h("td", { class: "center" }, String(book?.columns?.length ?? 0)), h("td", {}, TYPE_TEXT));
+      row.addEventListener("click", () => this._select(course.course_id));
+      row.addEventListener("dblclick", () => this.open(course.course_id));
+      row.addEventListener("keydown", (event) => { if (event.key === "Enter") this.open(course.course_id); });
+      row.dataset.id = course.course_id;
+      return row;
+    });
+    const open = h("button", { type: "button", class: "btn btn-primary", onClick: () => this._withSelected((id) => this.open(id)) }, "📂  Abrir");
+    const download = h("button", { type: "button", class: "btn", onClick: () => this._withSelected((id) => this._download(id)) }, "⬇  Descargar .xlsx");
+    this._hint = h("p", { class: "hint", role: "status", style: "margin:8px 0 0" }, courses.length ? "Doble clic en un archivo para abrirlo y editarlo aquí mismo." : "");
+    this.el.replaceChildren(h("div", { class: "xl-files card" }, h("div", { class: "card-body" },
+      h("h2", { class: "card-title" }, "📁  Mis hojas de asistencia"),
+      courses.length
+        ? [h("div", { class: "row", style: "margin-bottom:10px" }, open, download),
+          h("div", { class: "table-wrap", style: "--table-height:360px" }, h("table", { class: "table", "aria-label": "Archivos de Excel" },
+            h("thead", {}, h("tr", {}, ["Nombre", "Última lista", "Estudiantes", "Listas", "Tipo"].map((title, i) => h("th", { scope: "col", class: i === 2 || i === 3 ? "center" : "" }, title)))),
+            h("tbody", {}, rows))),
+          this._hint]
+        : h("p", { class: "hint", style: "text-align:center;padding:30px 0" }, "Aún no hay cursos.\nCree uno en la pestaña Cursos: su Excel aparecerá aquí como un archivo."))));
+  }
+
+  _select(courseId) {
+    this._selected = courseId;
+    this.el.querySelectorAll("tbody tr").forEach((row) => row.setAttribute("aria-selected", String(row.dataset.id === courseId)));
+  }
+
+  _withSelected(action) {
+    if (!this._selected) { this._hint.textContent = "⚠ Seleccione un archivo de la lista."; return; }
+    action(this._selected);
+  }
+
+  async _download(courseId) {
+    const course = this._state.repository.get(courseId);
+    try {
+      const stored = await this._state.bookRepository.get(courseId);
+      if (!stored) { await showInfo("El Excel aún no existe. Se crea al tomar la primera lista.", "Asistencia Facial"); return; }
+      const XLSX = await loadXlsx();
+      downloadBlob(new Blob([buildWorkbookBytes(XLSX, { ...stored, sheet_title: stored.sheet_title || course.name })],
+        { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), excelFileName(course.name));
+    } catch (error) {
+      await showError(`No se pudo crear el Excel: ${error.message}`, "Asistencia Facial");
+    }
+  }
+}

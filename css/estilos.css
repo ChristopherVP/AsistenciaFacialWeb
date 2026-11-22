@@ -234,3 +234,48 @@ dialog::backdrop { background: rgba(0, 0, 0, .45); }
 .combo-menu li:hover, .combo-menu li.active { background: var(--select); }
 .combo-menu[hidden], .combo-menu li[hidden] { display: none; }
 .excel-frame { display: block; width: 100%; height: calc(100vh - 170px); min-height: 420px; border: 1px solid var(--border); background: #fff; }
+
+/* Pestaña Excel (lista de archivos y hoja) */
+.xl-root .bar {background: var(--primary); color: #fff; display: flex; align-items: center; gap: 8px; padding: 8px 16px; flex-wrap: wrap;}
+.xl-root .bar h1 {margin: 0 auto 0 0; font-size: 18px;}
+.xl-root .bar label {color: #fff;}
+.xl-root .bar .btn {padding: 6px 10px;}
+.xl-root .sheet-wrap {flex: 1; overflow: auto; background: #E1E6EB;}
+.xl-root table.sheet {border-collapse: collapse; background: #fff; font: 13px Calibri, "Segoe UI", sans-serif;}
+.xl-root .sheet th, .xl-root .sheet td {border: 1px solid #D0D7DE; padding: 3px 8px; height: 22px; white-space: nowrap;}
+.xl-root .sheet thead th {position: sticky; top: 0; background: #F0F2F5; color: #444; font-weight: 400; text-align: center; z-index: 2; cursor: context-menu;}
+.xl-root .sheet tbody th {position: sticky; left: 0; background: #F0F2F5; color: #444; font-weight: 400; text-align: center; min-width: 38px; z-index: 1; cursor: context-menu;}
+.xl-root .tools {background: #F3F3F3; border-bottom: 1px solid #C9D1D9; display: flex; flex-wrap: wrap; gap: 2px; padding: 4px 8px; align-items: center;}
+.xl-root .tools .group {display: flex; gap: 2px; padding-right: 8px; margin-right: 6px; border-right: 1px solid #D0D7DE;}
+.xl-root .tools button {background: none; border: 1px solid transparent; padding: 4px 9px; cursor: pointer; font-size: 13px; border-radius: 3px;}
+.xl-root .tools button:hover:not(:disabled) {background: #E1EBF5; border-color: #B7CBE0;}
+.xl-root .tools button:disabled {opacity: .4; cursor: default;}
+.xl-root .fbar {display: flex; align-items: center; gap: 6px; padding: 3px 8px; background: #fff; border-bottom: 1px solid #C9D1D9;}
+.xl-root .fbar input {border: 1px solid #C9D1D9; padding: 3px 6px; font: 13px Calibri, 'Segoe UI', sans-serif;}
+.xl-root #celda {width: 70px; text-align: center;}
+.xl-root #formula {flex: 1;}
+.xl-root .sheet td.sel {outline: 2px solid #1E7B46; outline-offset: -2px;}
+.xl-root .sheet td.head {background: #1F4E79; color: #fff; font-weight: 700; text-align: center;}
+.xl-root .sheet td.mark, .xl-root .sheet td.pct {text-align: center;}
+.xl-root .sheet td.pct {font-weight: 700;}
+.xl-root .sheet td.yes {color: #1E7B46;}
+.xl-root .sheet td.no {color: #B03A2E;}
+.xl-root .sheet td[contenteditable="true"]:focus {outline: 2px solid #1E7B46; outline-offset: -2px; background: #F4FBF6;}
+.xl-root .tabs-bottom {background: #F0F2F5; border-top: 1px solid #C9D1D9; padding: 4px 12px; display: flex; gap: 12px; align-items: center;}
+.xl-root .tabs-bottom .sheet-tab {background: #fff; border: 1px solid #C9D1D9; border-bottom: 3px solid #1E7B46; padding: 3px 16px; font-weight: 700;}
+.xl-root .empty {padding: 40px; text-align: center; color: var(--muted);}
+.xl-root .ctx {position: fixed; z-index: 50; background: #fff; border: 1px solid #C9D1D9; box-shadow: 0 4px 14px rgba(0,0,0,.2); min-width: 220px; padding: 4px 0;}
+.xl-root .ctx button {display: block; width: 100%; text-align: left; background: none; border: 0; padding: 7px 14px; font: inherit; cursor: pointer;}
+.xl-root .ctx button:hover, .xl-root .ctx button:focus {background: #E8F0F8; outline: none;}
+.xl-root .sheet {user-select: none; -webkit-user-select: none; cursor: cell;}
+.xl-root .sheet td.sel {background: #DCE9F5 !important; outline: 0;}
+.xl-root .sheet td.head.sel {background: #2F6EA8 !important;}
+.xl-root .sheet td.cur:not(.head) {background: #fff !important;}
+.xl-root .sheet td.cur {outline: 2px solid #1E7B46 !important; outline-offset: -2px;}
+.xl-root .sheet th.hl {background: #CFE0F1 !important; font-weight: 700;}
+.xl-root .sheet td[contenteditable="true"] {user-select: text; -webkit-user-select: text; cursor: text; background: #fff !important;}
+.xl-root #hoja:focus {outline: 0;}
+.xl-root { display: flex; flex-direction: column; height: calc(100vh - 170px); min-height: 420px; border: 1px solid var(--border); background: #fff; }
+.xl-root .sheet-wrap { min-height: 0; }
+.xl-files .xl-name { display: inline-flex; gap: 8px; align-items: center; }
+.xl-files tbody tr { cursor: default; }

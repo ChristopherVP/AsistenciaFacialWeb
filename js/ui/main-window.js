@@ -3,6 +3,7 @@ import { formatClock, weekday } from "../models.js";
 import { AttendanceTab } from "./attendance-tab.js";
 import { makeLogo } from "./branding.js";
 import { CoursesTab } from "./courses-tab.js";
+import { ExcelTab } from "./excel-tab.js";
 import { h, wait } from "./dom.js";
 import { askYesNo, showWarning } from "./messagebox.js";
 import { SavePrompt } from "./save-prompt.js";
@@ -25,10 +26,9 @@ export class MainWindow {
     this._attendance = new AttendanceTab(state);
     this._courses = new CoursesTab(state);
     this._settings = new SettingsTab(state);
-    this._excelFrame = h("iframe", { class: "excel-frame", title: "Asistencia en Excel" });
+    this._excel = new ExcelTab(state);
     this._tab = -1; this._before = 1;
-    this._courses.onViewExcel = () => this._selectTab(EXCEL_TAB);
-    this._onMessage = (event) => { if (event.origin === location.origin && event.data === "af-volver") this._selectTab(this._before); };
+    this._courses.onViewExcel = (id) => { this._excel.open(id); this._selectTab(EXCEL_TAB); };
     this._clock = h("span", { class: "header-clock", "aria-label": "Fecha y hora" });
     // El navegador muestra su propio aviso («¿Salir del sitio?»); el texto no se puede personalizar.
     this._leaveGuard = (event) => { event.preventDefault(); event.returnValue = ""; };
@@ -40,7 +40,6 @@ export class MainWindow {
       document.title = APP_TITLE;
       this._root.replaceChildren(this._buildHeader(), this._buildNotebook());
       window.addEventListener("beforeunload", this._leaveGuard);
-      window.addEventListener("message", this._onMessage);
       this._showWarnings();
       this._tick();
       this._timers.push(setInterval(() => this._tick(), 1000));
@@ -67,7 +66,7 @@ export class MainWindow {
     const tabs = [
       ["  📷  Tomar lista  ", this._attendance.el],
       ["  📚  Cursos  ", this._courses.el],
-      ["  📊  Excel  ", this._excelFrame],
+      ["  📊  Excel  ", this._excel.el],
       ["  ⚙  Ajustes  ", this._settings.el],
     ];
     const buttons = []; const panels = [];
@@ -79,7 +78,7 @@ export class MainWindow {
         buttons[index].tabIndex = index === selected ? 0 : -1;
         panels[index].hidden = index !== selected;
       });
-      if (selected === EXCEL_TAB) this._loadExcel(this._courses.selectedId);
+      if (selected === EXCEL_TAB) this._excel.activate();
     };
     tabs.forEach(([title, content], index) => {
       const id = `pestana-${index}`;
@@ -96,15 +95,6 @@ export class MainWindow {
     const saved = Number(sessionStorage.getItem("af_tab"));
     this._selectTab(saved >= 0 && saved < tabs.length ? saved : 0);
     return h("main", { class: "notebook" }, h("div", { class: "tabs", role: "tablist" }, buttons), panels);
-  }
-
-  /** El Excel vive en la pestaña «Excel» (un iframe de excel.html). Se carga la primera vez que se abre. */
-  _loadExcel(courseId) {
-    const frame = this._excelFrame;
-    const url = `excel.html?embed=1#${courseId ?? ""}`;
-    if (!frame.getAttribute("src")) { frame.src = url; return; }
-    if (!courseId) return;
-    try { frame.contentWindow.location.hash = courseId; } catch { frame.src = url; }
   }
 
   _tick() {
@@ -135,7 +125,6 @@ export class MainWindow {
     if (!(await this._confirmEndSession("cerrar sesión"))) return;
     for (const timer of this._timers) { clearInterval(timer); clearTimeout(timer); }
     window.removeEventListener("beforeunload", this._leaveGuard);
-    window.removeEventListener("message", this._onMessage);
     this._prompt?.dismiss();
     await wait(0);
     this._resolve();
