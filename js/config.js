@@ -74,6 +74,7 @@ export const SECURITY_QUESTIONS = Object.freeze([
 ]);
 
 export const DAY_LABELS = Object.freeze(["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]);
+export const MAX_SLOT_MINUTES = 60;
 export const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export const COLORS = Object.freeze({

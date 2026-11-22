@@ -1,4 +1,4 @@
-import { DAY_LABELS, TIME_PATTERN } from "./config.js";
+import { DAY_LABELS, MAX_SLOT_MINUTES, TIME_PATTERN } from "./config.js";
 import { ValidationError } from "./errors.js";
 import { nameSortKey } from "./validators.js";
 
@@ -36,12 +36,15 @@ export function createStudent(studentId, name, embeddings) {
   });
 }
 
-export function createSlot(days, start, end) {
+export function createSlot(days, start, end, { legacy = false } = {}) {
   if (!days.length || days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
     throw new ValidationError("Selecciona al menos un día de la semana.");
   }
   if (parseTime(start) >= parseTime(end)) {
     throw new ValidationError("La hora de fin debe ser posterior a la hora de inicio.");
+  }
+  if (!legacy && parseTime(end) - parseTime(start) > MAX_SLOT_MINUTES) {
+    throw new ValidationError("La lista programada no puede durar más de 1 hora (60 minutos).");
   }
   return Object.freeze({ days: Object.freeze([...days]), start, end });
 }
@@ -95,7 +98,7 @@ export function courseFromDict(raw) {
   const students = (raw.students ?? []).map((item) =>
     createStudent(item.student_id, item.name, item.embeddings));
   const slots = (raw.slots ?? []).map((item) =>
-    createSlot(item.days.map(Number), String(item.start), String(item.end)));
+    createSlot(item.days.map(Number), String(item.start), String(item.end), { legacy: true }));
   return createCourse({
     course_id: String(raw.course_id), name: String(raw.name), students, slots,
     schedule_enabled: Boolean(raw.schedule_enabled), last_auto_date: String(raw.last_auto_date ?? ""),

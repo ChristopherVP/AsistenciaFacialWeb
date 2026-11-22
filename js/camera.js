@@ -1,5 +1,6 @@
 import { VIEW_HEIGHT, VIEW_WIDTH } from "./config.js";
 import { CameraError } from "./errors.js";
+import { blockedMessage } from "./permissions.js";
 
 const INTEGRATED_HINTS = Object.freeze([
   "integrated", "internal", "built-in", "builtin", "laptop", "hp wide vision", "hp truevision",
@@ -23,17 +24,11 @@ const openError = (name) => new CameraError(
 /** Quita el ID de hardware «(vvvv:pppp)» que Windows añade al nombre; solo para mostrar. */
 export const displayName = (name) => String(name).replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*/gi, " ").trim();
 
-/** Mensaje según el estado real del permiso y si se usa la app instalada o el navegador. */
 async function permissionMessage() {
-  const installed = globalThis.matchMedia?.("(display-mode: standalone)").matches;
   let state = "prompt";
-  try { state = (await navigator.permissions.query({ name: "camera" })).state; } catch { /* sin Permissions API */ }
-  if (state === "denied") {
-    return installed
-      ? "La cámara está bloqueada para la aplicación. Abra el menú ⋮ de la ventana → Configuración de la aplicación (o el candado) → Cámara → Permitir. Luego vuelva a intentarlo."
-      : "La cámara está bloqueada. Pulse el candado de la barra de direcciones → Cámara → Permitir y recargue la página.";
-  }
-  return "Falta aceptar el permiso de la cámara. Pulse «Permitir» en el aviso que aparece arriba y vuelva a intentarlo.";
+  try { state = (await navigator.permissions.query({ name: "camera" })).state; } catch { state = "unknown"; }
+  if (state === "denied") return blockedMessage("camera");
+  return `Falta el permiso de la cámara. Elija «Permitir» en el aviso del navegador y vuelva a intentarlo. Si no aparece ningún aviso o ya lo rechazó: ${blockedMessage("camera")}`;
 }
 
 let camerasInUse = 0;

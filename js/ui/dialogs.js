@@ -1,4 +1,4 @@
-import { APP_TITLE, COLORS, DAY_LABELS, FRAME_DELAY_MS, MAX_READ_FAILURES } from "../config.js";
+import { APP_TITLE, COLORS, DAY_LABELS, FRAME_DELAY_MS, MAX_READ_FAILURES, MAX_SLOT_MINUTES } from "../config.js";
 import { BLUE, GREEN, RED } from "../camera.js";
 import {
   FaceEnrollment, Phase, SAY_APPROACH, SAY_DONE, SAY_DUPLICATE, TEXT_APPROACH,
@@ -295,33 +295,45 @@ export class RegistrationDialog {
 export class SlotDialog {
   constructor(onSaved) {
     this._onSaved = onSaved;
+    this._saving = false;
+    this._duration = 20;
     this._dayInputs = DAY_LABELS.map((_, index) => h("input", { type: "checkbox", checked: index < 5, onChange: () => this._refresh() }));
     this._time = {
-      startHour: this._pad2Input("07", allowsHourInput, 23, "Hora de inicio: horas"),
-      startMinute: this._pad2Input("00", allowsMinuteInput, 59, "Hora de inicio: minutos"),
-      endHour: this._pad2Input("07", allowsHourInput, 23, "Hora de fin: horas"),
-      endMinute: this._pad2Input("20", allowsMinuteInput, 59, "Hora de fin: minutos"),
+      startHour: this._pad2Input("07", allowsHourInput, 23, "Hora de inicio: horas", () => this._onStartChange()),
+      startMinute: this._pad2Input("00", allowsMinuteInput, 59, "Hora de inicio: minutos", () => this._onStartChange()),
+      endHour: this._pad2Input("07", allowsHourInput, 23, "Hora de fin: horas", () => this._onEndChange()),
+      endMinute: this._pad2Input("20", allowsMinuteInput, 59, "Hora de fin: minutos", () => this._onEndChange()),
     };
     this._summary = h("div", { class: "summary-box", role: "status", "aria-live": "polite" });
     const { id, dialog } = newDialog();
     dialog.append(
       dialogHeader("Agregar horario", "La lista solo se toma dentro del intervalo", id),
       h("div", { class: "dialog-body" }, card(this._buildBody(), { padding: 18 })));
+    dialog.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.target.tagName === "BUTTON") return;
+      event.preventDefault();
+      this._save();
+    });
     this._close = openDialog(dialog);
     this._refresh();
   }
 
-  _pad2Input(value, allows, maximum, label) {
+  _pad2Input(value, allows, maximum, label, onChange) {
     const input = h("input", { type: "text", inputMode: "numeric", value, maxlength: "2", "aria-label": label, autocomplete: "off" });
     restrictInput(input, allows);
-    input.addEventListener("input", () => this._refresh());
-    input.addEventListener("blur", () => { input.value = pad2(Number(input.value || 0)); this._refresh(); });
+    input.addEventListener("input", onChange);
+    input.addEventListener("blur", () => {
+      const padded = pad2(Number(input.value || 0));
+      if (padded === input.value) return;
+      input.value = padded;
+      onChange();
+    });
     input.addEventListener("keydown", (event) => {
       const step = event.key === "ArrowUp" ? 1 : event.key === "ArrowDown" ? -1 : 0;
       if (!step) return;
       event.preventDefault();
       input.value = pad2((Number(input.value || 0) + step + maximum + 1) % (maximum + 1));
-      this._refresh();
+      onChange();
     });
     return input;
   }
@@ -341,13 +353,21 @@ export class SlotDialog {
         this._picker("HORA DE INICIO", this._time.startHour, this._time.startMinute),
         this._picker("HORA DE FIN", this._time.endHour, this._time.endMinute)),
       h("div", { class: "row", style: "margin-top:10px;flex-wrap:wrap" },
-        h("span", { class: "hint" }, "Duración rápida:"),
-        [10, 20, 30, 45].map((minutes) => h("button", { type: "button", class: "btn", onClick: () => this._applyDuration(minutes) }, `${minutes} min`))),
+        h("span", { class: "hint" }, "Duración rápida (máximo 1 hora):"),
+        [10, 20, 30, 45, 60].map((minutes) => h("button", { type: "button", class: "btn", onClick: () => this._applyDuration(minutes) }, `${minutes} min`))),
       h("div", { style: "margin:16px 0 14px" }, this._summary),
       h("div", { class: "row" },
         h("button", { type: "button", class: "btn btn-primary", onClick: () => this._save() }, "💾  Guardar horario"),
         h("button", { type: "button", class: "btn", onClick: () => this._close() }, "Cancelar")),
     ];
+  }
+
+  _minutes() {
+    const part = (input) => Number(input.value || 0);
+    return {
+      start: part(this._time.startHour) * 60 + part(this._time.startMinute),
+      end: part(this._time.endHour) * 60 + part(this._time.endMinute),
+    };
   }
 
   _times() {
@@ -360,37 +380,73 @@ export class SlotDialog {
 
   _days() { return this._dayInputs.flatMap((input, index) => (input.checked ? [index] : [])); }
 
+  _setEnd(totalMinutes) {
+    const clamped = Math.max(0, Math.min(totalMinutes, 23 * 60 + 59));
+    this._time.endHour.value = pad2(Math.floor(clamped / 60));
+    this._time.endMinute.value = pad2(clamped % 60);
+  }
+
+  _onStartChange() {
+    const { start, end } = this._minutes();
+    let notice = "";
+    if (end <= start) this._setEnd(start + this._duration);
+    else if (end - start > MAX_SLOT_MINUTES) {
+      this._setEnd(start + MAX_SLOT_MINUTES);
+      notice = "La lista programada dura como máximo 1 hora: se ajustó la hora de fin.";
+    }
+    this._refresh(notice);
+  }
+
+  _onEndChange() {
+    const { start, end } = this._minutes();
+    let notice = "";
+    if (end - start > MAX_SLOT_MINUTES) {
+      this._setEnd(start + MAX_SLOT_MINUTES);
+      notice = "La lista programada dura como máximo 1 hora: se ajustó la hora de fin.";
+    }
+    const adjusted = this._minutes();
+    if (adjusted.end > adjusted.start) this._duration = adjusted.end - adjusted.start;
+    this._refresh(notice);
+  }
+
   _applyDuration(minutes) {
-    const start = parseTime(this._times().start);
-    const end = Math.min(start + minutes, 23 * 60 + 59);
-    this._time.endHour.value = pad2(Math.floor(end / 60));
-    this._time.endMinute.value = pad2(end % 60);
+    this._duration = Math.min(minutes, MAX_SLOT_MINUTES);
+    this._setEnd(this._minutes().start + this._duration);
     this._refresh();
   }
 
-  _refresh() {
+  _showProblem(message) {
+    this._summary.textContent = `⚠  ${message}`;
+    this._summary.classList.add("is-error");
+  }
+
+  _refresh(notice = "") {
     try {
       const { start, end } = this._times();
       const slot = createSlot(this._days(), start, end);
       const days = slot.days.map((day) => DAY_LABELS[day]).join(", ");
-      this._summary.textContent = `Se tomará lista los ${days}, de ${slot.start} a ${slot.end} (${parseTime(slot.end) - parseTime(slot.start)} minutos).`;
+      const summary = `Se tomará lista los ${days}, de ${slot.start} a ${slot.end} (${parseTime(slot.end) - parseTime(slot.start)} minutos).`;
+      this._summary.textContent = notice ? `⚠  ${notice} ${summary}` : summary;
       this._summary.classList.remove("is-error");
     } catch (error) {
-      this._summary.textContent = `⚠  ${error.message}`;
-      this._summary.classList.add("is-error");
+      this._showProblem(error.message);
     }
   }
 
   async _save() {
-    for (const input of Object.values(this._time)) input.value = pad2(Number(input.value || 0));
+    if (this._saving) return;
+    this._saving = true;
     try {
+      for (const input of Object.values(this._time)) input.value = pad2(Number(input.value || 0));
       const { start, end } = this._times();
       await this._onSaved(createSlot(this._days(), start, end));
     } catch (error) {
-      if (!(error instanceof ValidationError)) throw error;
-      this._summary.textContent = `⚠  ${error.message}`;
-      this._summary.classList.add("is-error");
+      const message = error instanceof ValidationError && error.message ? error.message : `No se pudo guardar el horario${error?.message ? `: ${error.message}` : "."}`;
+      this._showProblem(message);
+      await showError(message, APP_TITLE);
       return;
+    } finally {
+      this._saving = false;
     }
     this._close();
   }

@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from "../models.js";
 import { Camera, detectCameras, displayName } from "../camera.js";
 import { AuthError, CameraError } from "../errors.js";
 import { installer } from "../pwa.js";
+import { PLATFORMS, detectPlatform, helpSteps, notificationState } from "../permissions.js";
 import { CameraPreviewDialog } from "./dialogs.js";
 import { h } from "./dom.js";
 import { THEMES, getThemePreference, setThemePreference } from "../theme.js";
@@ -11,8 +12,21 @@ import { showError } from "./messagebox.js";
 import { card } from "./widgets.js";
 
 const NO_CAMERA_TEXT =
-  "No se detectó ninguna cámara. Conecte la webcam y revise que el navegador tenga permiso para usarla " +
-  "(candado de la barra de direcciones) y que el sistema permita el acceso a la cámara. Luego pulse Buscar cámaras.";
+  "No se detectó ninguna cámara. Conecte la webcam (o revise la cámara del teléfono), compruebe que otra aplicación no la esté usando " +
+  "y que el navegador tenga permiso para usarla. Los pasos para cada dispositivo están en «Permisos del dispositivo», más abajo. Luego pulse Buscar cámaras.";
+
+const CAMERA_STATE_TEXT = Object.freeze({
+  granted: "✔ Permitida",
+  denied: "⛔ Bloqueada: siga los pasos de más abajo para su dispositivo",
+  prompt: "Aún sin decidir: pulse «Permitir cámara» y elija «Permitir»",
+});
+const CAMERA_STATE_UNKNOWN = "No se puede comprobar en este navegador: pulse «Permitir cámara»";
+const NOTIFICATION_STATE_TEXT = Object.freeze({
+  granted: "✔ Permitidas",
+  denied: "⛔ Bloqueadas: siga los pasos de más abajo para su dispositivo",
+  default: "Aún sin decidir (es opcional): pulse «Permitir notificaciones»",
+  unsupported: "No disponibles en este dispositivo o navegador (vea los pasos de más abajo)",
+});
 
 export class SettingsTab {
   constructor(state) {
@@ -42,6 +56,7 @@ export class SettingsTab {
         this._saveStatus),
       this._buildAppearance(),
       this._buildAccount(),
+      this._buildPermissions(),
       this._buildNotifications(),
       this._buildInstall());
   }
@@ -73,6 +88,61 @@ export class SettingsTab {
     ], { padding: 18 });
   }
 
+  _guide(title, kind) {
+    const detected = detectPlatform();
+    return h("div", { style: "margin-top:14px" },
+      h("h3", { style: "margin:0 0 6px;font-size:15px" }, title),
+      Object.entries(PLATFORMS).map(([platform, label]) =>
+        h("details", { style: "margin:4px 0", open: platform === detected },
+          h("summary", { style: "cursor:pointer;font-weight:600" }, platform === detected ? `${label}  (su dispositivo)` : label),
+          h("ol", { style: "margin:6px 0 4px;padding-left:22px;font-size:14px;line-height:1.45" },
+            helpSteps(kind, platform).map((step) => h("li", { style: "margin:4px 0" }, step))))));
+  }
+
+  _buildPermissions() {
+    this._cameraPermission = h("p", { style: "margin:10px 0 0", role: "status", "aria-live": "polite" });
+    this._notificationPermission = h("p", { style: "margin:4px 0 0", role: "status", "aria-live": "polite" });
+    const permitCamera = async () => { await this.refreshCameras(); await this.refreshPermissions(); };
+    const permitNotifications = async () => {
+      await requestNotifications();
+      this._notifyStatus.textContent = notificationStatus();
+      await this.refreshPermissions();
+    };
+    globalThis.document?.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") this.refreshPermissions();
+    });
+    this.refreshPermissions();
+    return card([
+      h("h2", { class: "card-title" }, "🔐  Permisos del dispositivo"),
+      h("p", { class: "hint", style: "margin:4px 0 10px" },
+        "Desde aquí puede pedir cada permiso y ver su estado, sin usar el menú ⋮ de la ventana (que no existe en el celular). " +
+        "La cámara es necesaria para tomar lista; las notificaciones son opcionales."),
+      h("div", { class: "row", style: "flex-wrap:wrap" },
+        h("button", { type: "button", class: "btn", onClick: permitCamera }, "📷  Permitir cámara"),
+        h("button", { type: "button", class: "btn", onClick: permitNotifications }, "🔔  Permitir notificaciones"),
+        h("button", { type: "button", class: "btn", onClick: () => this.refreshPermissions() }, "🔄  Actualizar estado")),
+      this._cameraPermission,
+      this._notificationPermission,
+      h("p", { class: "hint", style: "margin:10px 0 0" },
+        "Si un permiso quedó bloqueado, el navegador ya no vuelve a preguntar: hay que activarlo a mano. Elija su dispositivo:"),
+      this._guide("📷  Cómo activar la cámara", "camera"),
+      this._guide("🔔  Cómo activar las notificaciones", "notifications"),
+      this._guide("📲  Cómo instalar la aplicación", "install"),
+    ], { padding: 18 });
+  }
+
+  async refreshPermissions() {
+    let camera = CAMERA_STATE_UNKNOWN;
+    try {
+      const { state } = await navigator.permissions.query({ name: "camera" });
+      camera = CAMERA_STATE_TEXT[state] ?? CAMERA_STATE_UNKNOWN;
+    } catch {
+      camera = CAMERA_STATE_UNKNOWN;
+    }
+    this._cameraPermission.textContent = `Cámara: ${camera}`;
+    this._notificationPermission.textContent = `Notificaciones: ${NOTIFICATION_STATE_TEXT[notificationState()] ?? NOTIFICATION_STATE_TEXT.unsupported}`;
+  }
+
   _buildNotifications() {
     this._notifyStatus = h("p", { class: "hint", style: "margin:8px 0 0", role: "status", "aria-live": "polite" }, notificationStatus());
     const item = (title, text) => h("li", { style: "margin:6px 0" }, h("strong", {}, `${title} `), text);
@@ -90,7 +160,7 @@ export class SettingsTab {
         item("Solo si el programa está abierto.", "Puede estar minimizado, pero si lo cierra o el equipo está apagado o suspendido no se puede avisar."),
         item("Un solo aviso.", "Si tiene la aplicación instalada, avisa la aplicación y el navegador no. Si no la tiene instalada, avisa el navegador."),
         item("Nada más.", "No envía publicidad, no escribe a los estudiantes y no manda ningún dato fuera de este dispositivo."),
-        item("Puede quitar el permiso cuando quiera", "desde el candado junto a la dirección o desde la configuración de la aplicación.")),
+        item("Puede quitar el permiso cuando quiera", "desde «Permisos del dispositivo» (más arriba), el candado junto a la dirección o la configuración de la aplicación.")),
     ], { padding: 18 });
   }
 

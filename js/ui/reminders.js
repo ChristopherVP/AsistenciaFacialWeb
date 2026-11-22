@@ -1,4 +1,5 @@
 import { isoDate, parseTime, weekday } from "../models.js";
+import { blockedMessage, detectPlatform, isInstalledApp } from "../permissions.js";
 import { Speaker } from "../voice.js";
 
 export const NOTICE_MINUTES = 5; // aviso del sistema antes de empezar
@@ -14,10 +15,14 @@ const browserStorage = () => { try { return globalThis.localStorage ?? null; } c
 export const notificationsSupported = () => typeof globalThis.Notification !== "undefined";
 
 export function notificationStatus() {
-  if (!notificationsSupported()) return "Este dispositivo no permite notificaciones.";
+  if (!notificationsSupported()) {
+    return detectPlatform() === "ios" && !isInstalledApp()
+      ? "En iPhone y iPad las notificaciones solo funcionan con la aplicación agregada a la pantalla de inicio (iOS 16.4 o superior). Vea los pasos en Permisos del dispositivo."
+      : "Este dispositivo no permite notificaciones.";
+  }
   const { permission } = globalThis.Notification;
   if (permission === "granted") return `✔ Permiso concedido: recibirá una notificación ${NOTICE_MINUTES} minutos antes de cada lista programada (con la aplicación abierta).`;
-  if (permission === "denied") return "Notificaciones bloqueadas. Para permitirlas: en el navegador, pulse el candado junto a la dirección → Notificaciones → Permitir. En la aplicación instalada, abra el menú ⋯ de la ventana → Configuración de la aplicación → Notificaciones → Permitir.";
+  if (permission === "denied") return blockedMessage("notifications");
   return "Aún no ha dado el permiso. Pulse «Dar permiso de notificaciones» y elija «Permitir» en la ventana que aparece.";
 }
 

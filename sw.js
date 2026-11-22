@@ -1,5 +1,5 @@
 /* Service worker: la aplicación funciona sin internet tras la primera visita. */
-const VERSION = "asistencia-facial-v10";
+const VERSION = "asistencia-facial-v11";
 const CORE = [
   "./", "./index.html", "./manifest.webmanifest", "./css/estilos.css", "./icons/icon.svg",
   "./icons/icon-192.png", "./icons/icon-512.png",
@@ -8,7 +8,7 @@ const CORE = [
   "./js/attendance.js", "./js/excel.js", "./js/camera.js", "./js/voice.js", "./js/backup.js", "./js/pwa.js", "./js/sheet-model.js", "./js/excel-import.js",
   "./js/ui/dom.js", "./js/ui/messagebox.js", "./js/ui/branding.js", "./js/ui/widgets.js", "./js/ui/dialogs.js",
   "./js/ui/state.js", "./js/ui/save-prompt.js", "./js/ui/login.js", "./js/ui/main-window.js",
-  "./js/ui/attendance-tab.js", "./js/ui/courses-tab.js", "./js/ui/settings-tab.js", "./js/ui/excel-tab.js", "./js/ui/reminders.js", "./js/theme.js",
+  "./js/ui/attendance-tab.js", "./js/ui/courses-tab.js", "./js/ui/settings-tab.js", "./js/ui/excel-tab.js", "./js/ui/reminders.js", "./js/theme.js", "./js/permissions.js",
 ];
 // Pesados: se guardan sin bloquear la instalación (si falta alguno se guarda al usarlo).
 const HEAVY = [
