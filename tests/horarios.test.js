@@ -77,3 +77,27 @@ test("diálogo de horario: al modificar aparece con los datos del horario y guar
   assert.equal(saved.start, "09:00");
   assert.equal(saved.end, "09:30");
 });
+
+test("horarios: un horario cumplido queda bloqueado, no vuelve a arrancar y solo se puede quitar", () => {
+  let course = models.courseSetAllSlots(baseCourse(), true);
+  const first = course.slots[0];
+  course = models.courseCompleteSlot(course, first, "2026-11-16");
+  assert.equal(models.isSlotCompleted(course.slots[0]), true);
+  assert.equal(course.slots[0].enabled, false);
+  assert.equal(models.completedSlotCount(course), 1);
+  assert.equal(models.activeSlotCount(course), 1);
+  assert.equal(scheduler.dueCourses([course], monday).length, 0);
+  assert.throws(() => models.courseToggleSlot(course, 0), /ya se cumplió/);
+  assert.throws(() => models.courseReplaceSlot(course, 0, models.createSlot([1], "08:00", "08:20")), /ya se cumplió/);
+  const all = models.courseSetAllSlots(course, false);
+  assert.equal(models.isSlotCompleted(all.slots[0]), true);
+  assert.equal(all.slots[0].completed_on, "2026-11-16");
+  course = models.courseAddSlot(course, models.createSlot([0], "07:00", "07:20"));
+  assert.equal(course.slots.length, 3);
+  const reloaded = models.courseFromDict(JSON.parse(JSON.stringify(course)));
+  assert.equal(models.isSlotCompleted(reloaded.slots[0]), true);
+  assert.equal(models.activeSlotCount(reloaded), 2);
+  course = models.courseRemoveSlot(course, 0);
+  assert.equal(course.slots.length, 2);
+  assert.equal(models.completedSlotCount(course), 0);
+});

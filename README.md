@@ -53,6 +53,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 - Create, rename and delete **courses**; each course has its own students, schedule and attendance sheet.
 - **Student registration with face scan**: guided capture of 5 frontal samples with an on-screen progress bar and **Spanish voice instructions** (Web Speech API), a mandatory consent checkbox and automatic **duplicate-face detection** against every student registered in any course under a different cédula.
 - Students are always listed **alphabetically by surname (A–Z)**.
+- **Completed schedules:** once an automatic list has been taken and saved, its schedule is marked **✔ Cumplido** with the date, can no longer be edited, switched or reused, and can only be removed.
 - **Several schedules per course**, each one with its own **Activa / Apagada** button, plus **Activar todos**, **Desactivar todos** and **Modificar horario** (edit days and times of an existing schedule without deleting it).
 - Students added from the Excel tab or imported from an Excel file stay **pending** (`⏳ Falta rostro`) until they finish their face scan with **✔ Terminar registro**.
 
@@ -299,6 +300,7 @@ The `.xlsx` is built with a local copy of SheetJS (`xlsx-js-style`): blue bold h
 **Reminders** (`reminders.js`)
 - **5 minutes before** (default; 2, 3, 5, 10 or 15 can be chosen in *Ajustes → Permiso de notificaciones*) a scheduled list a system notification is shown (requires the permission; optional). Tapping it opens or focuses the app.
 - **1 minute before** (default; 1, 2 or 3 can be chosen) a voice says that the scheduled list of the course will start soon (no permission needed, and it stays silent if a list is already running).
+- **Completed schedules never remind or start again:** a schedule marked *Cumplido* is ignored by the scheduler and the reminders.
 - **No sudden alerts:** each reminder is only given if the app had already seen the schedule *before* that reminder's window began. A schedule created, turned on or opened inside the window does not fire the notification at once; only the reminder that can still arrive on time is given (for example, a schedule created 3 minutes ahead gets only the voice, at 1 minute before).
 - A minimized or hidden window may run its clock more slowly (browser power saving), so a reminder can arrive up to about a minute late.
 - Each reminder is sent once per day, even with several windows open. If the installed app is in use, it is the one that notifies and the browser tab stays quiet.
@@ -341,7 +343,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | **Biometric data** | Only **face embeddings** are stored (numeric vectors), never photos or video. They never leave the browser. |
 | **Consent** | Registering a face requires accepting a consent notice. |
 | **Local data** | All data lives in the browser's IndexedDB; whoever has access to that browser profile has access to the data. |
-| **Leave guard** | The browser asks for confirmation before closing the tab while signed in. |
+| **Leave guard** | The browser asks for confirmation before closing the window only if a list is running or a sheet cell is half-edited; at the login screen, and when nothing is at risk, the window closes directly. |
 | **Excel formulas** | The evaluator checks the expression against a whitelist of characters and functions before evaluating it. |
 | **No secrets in code** | There are no keys, tokens or passwords in the source; there is no backend. |
 
@@ -433,6 +435,7 @@ Each course has one *book*:
 
 Other details:
 - The browser is asked for **persistent storage** so it does not discard the data when disk space is low.
+- **Saving on exit:** when the window is closed (the ✕ button) or reloaded, the app finishes what is pending the same way *Cerrar sesión* does: a running list is finished and saved, and a half-edited sheet cell is committed. Browsers do not guarantee that asynchronous work completes while a page unloads, so with a list running the browser's own confirmation appears first; choose *Cancelar* and use *Finalizar y guardar* if you want to be certain.
 - Tabs and windows of the app stay in sync through a `BroadcastChannel` (`af-courses`) and an internal subscription mechanism: changes made in the Excel tab appear immediately in *Cursos*, and lists taken appear in the sheet.
 - **Deleting a course also deletes its stored attendance**: download the Excel first if you need it.
 
@@ -534,7 +537,7 @@ npm test
 | `pwa.test.js` | Service worker file list, every JS module cached, installable manifest. |
 | `theme.test.js` | Light / dark theme persistence. |
 | `permisos-horario.test.js` | Device detection and permission texts, the 40-minute slot limit (and legacy courses) and the schedule dialog. |
-| `horarios.test.js` | Per-slot on/off, activate / deactivate all, editing a slot, reading courses saved before per-slot switches and the edit dialog. |
+| `horarios.test.js` | Per-slot on/off, activate / deactivate all, editing a slot, completed (locked) schedules, reading courses saved before per-slot switches and the edit dialog. |
 | `ui.test.js` | Full interface flow: account → courses → schedule → attendance list → Excel. |
 
 Manual check:

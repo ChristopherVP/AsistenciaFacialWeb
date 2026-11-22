@@ -4,8 +4,8 @@ import { Gallery } from "../face-engine.js";
 import { downloadBlob } from "../backup.js";
 import { buildWorkbookBytes, loadXlsx } from "../excel.js";
 import {
-  activeSlotCount, courseAddSlot, courseAddStudent, courseRemoveSlot, courseRemoveStudent, courseReplaceSlot, courseSetAllSlots,
-  courseToggleSlot, createCourse, isSlotActive, slotDaysText, slotLabel, slotMinutes,
+  activeSlotCount, completedSlotCount, courseAddSlot, courseAddStudent, courseRemoveSlot, courseRemoveStudent, courseReplaceSlot,
+  courseSetAllSlots, courseToggleSlot, createCourse, isSlotActive, isSlotCompleted, slotDaysText, slotLabel, slotMinutes,
 } from "../models.js";
 import { excelFileName } from "../storage.js";
 import { CameraPreviewDialog, NameDialog, RegistrationDialog, SlotDialog } from "./dialogs.js";
@@ -80,7 +80,7 @@ export class CoursesTab {
           h("button", { type: "button", class: "btn", onClick: () => this._editSlot() }, "✏  Modificar horario"),
           h("button", { type: "button", class: "btn", onClick: () => this._removeSlot() }, "Quitar horario")),
         h("p", { class: "hint", style: "margin:8px 0 0" },
-          "La lista se toma sola dentro de cada horario activo, solo a los estudiantes de este curso. Use el botón de cada fila para activar o apagar un horario, o «Activar todos». La aplicación debe estar abierta.")));
+          "La lista se toma sola dentro de cada horario activo, solo a los estudiantes de este curso. Use el botón de cada fila para activar o apagar un horario, o «Activar todos». Un horario que ya tomó lista queda como «Cumplido»: no se puede modificar, solo quitar. La aplicación debe estar abierta.")));
   }
 
   get selectedId() { return this._selectedId; }
@@ -121,9 +121,14 @@ export class CoursesTab {
     const count = course.students.length;
     this._studentsChip.textContent = `${count} ESTUDIANTE${count === 1 ? "" : "S"}`;
     const active = activeSlotCount(course);
-    this._enabledText.textContent = course.slots.length ? `${active} de ${course.slots.length} horario(s) con lista automática activa.` : "Sin horarios.";
+    const done = completedSlotCount(course);
+    const pending = course.slots.length - done;
+    this._enabledText.textContent = !course.slots.length ? "Sin horarios."
+      : !pending ? `Todos los horarios ya se cumplieron (${done}). Quítelos o agregue uno nuevo.`
+        : `${active} de ${pending} horario(s) pendiente(s) con lista automática activa.${done ? ` ${done} cumplido(s).` : ""}`;
     const [text, color] = !course.slots.length ? ["SIN HORARIO", GRAY]
-      : active > 0 ? ["AUTOMÁTICA ACTIVA", COLORS.success] : ["AUTOMÁTICA APAGADA", COLORS.accent];
+      : !pending ? ["HORARIO CUMPLIDO", COLORS.primary]
+        : active > 0 ? ["AUTOMÁTICA ACTIVA", COLORS.success] : ["AUTOMÁTICA APAGADA", COLORS.accent];
     this._scheduleChip.textContent = text;
     this._scheduleChip.style.background = color;
     this._studentsTable.clear();
@@ -138,6 +143,10 @@ export class CoursesTab {
   }
 
   _slotButton(course, slot, index) {
+    if (isSlotCompleted(slot)) {
+      const date = slot.completed_on.split("-").reverse().join("/");
+      return h("span", { style: "font-weight:700;color:var(--success, #27AE60)", title: `Lista tomada el ${date}. Ya no se puede modificar; solo quitar.` }, `✔ Cumplido ${date}`);
+    }
     const on = isSlotActive(course, slot);
     return h("button", {
       type: "button", class: on ? "btn btn-success" : "btn", style: "padding:3px 10px;min-width:104px", "aria-pressed": String(on),
@@ -325,6 +334,7 @@ export class CoursesTab {
     const index = Number(selected);
     const slot = course.slots[index];
     if (!slot) { await showInfo("Ese horario ya no existe.", APP_TITLE); this._showSelected(); return; }
+    if (isSlotCompleted(slot)) { await showInfo("Ese horario ya se cumplió y no se puede modificar. Solo puede quitarlo con «Quitar horario».", APP_TITLE); return; }
     new SlotDialog((updated) => this._saveUpdate((current) => courseReplaceSlot(current, index, updated)), slot);
   }
 
@@ -337,6 +347,7 @@ export class CoursesTab {
     const course = this._current();
     if (course === null) { await showInfo("Seleccione un curso de la lista.", APP_TITLE); return; }
     if (!course.slots.length) { await showInfo("Agregue al menos un horario para que la lista automática funcione.", APP_TITLE); return; }
+    if (completedSlotCount(course) === course.slots.length) { await showInfo("Todos los horarios ya se cumplieron. Quítelos o agregue uno nuevo.", APP_TITLE); return; }
     if (await this._locked()) return;
     await this._run((current) => courseSetAllSlots(current, enabled));
   }

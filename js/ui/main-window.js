@@ -19,6 +19,8 @@ const clockText = (now) =>
   `${DAY_LABELS[weekday(now)]} ${pad2(now.getDate())}/${pad2(now.getMonth() + 1)}/${now.getFullYear()}   ${formatClock(now)}`;
 
 /** Ventana principal: encabezado, pestañas y reloj. `run()` termina al cerrar sesión. */
+const reportExitError = (error) => console.error("No se pudo guardar al salir:", error);
+
 export class MainWindow {
   constructor(root, state, warnings = []) {
     this._root = root;
@@ -33,8 +35,28 @@ export class MainWindow {
     this._tab = -1; this._before = 1;
     this._courses.onViewExcel = (id) => { this._excel.open(id); this._selectTab(EXCEL_TAB); };
     this._clock = h("span", { class: "header-clock", "aria-label": "Fecha y hora" });
-    // El navegador muestra su propio aviso («¿Salir del sitio?»); el texto no se puede personalizar.
-    this._leaveGuard = (event) => { event.preventDefault(); event.returnValue = ""; };
+    // Solo hay aviso del navegador (su texto no se puede personalizar) si hay una lista en curso o una celda a medio editar;
+    // todo lo demás ya se guarda al instante y al salir se termina de guardar lo pendiente.
+    this._leaveGuard = (event) => {
+      if (!this._atRisk()) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    this._exitSave = () => this._flushForExit();
+    this._hiddenSave = () => { if (document.visibilityState === "hidden") this._excel.flush().catch(reportExitError); };
+  }
+
+  _atRisk() { return this._attendance.isRunning || this._excel.hasPendingEdit; }
+
+  _flushForExit() {
+    this._excel.flush().catch(reportExitError);
+    if (this._attendance.isRunning) this._attendance.finishSession().catch(reportExitError);
+  }
+
+  _removeExitHandlers() {
+    window.removeEventListener("beforeunload", this._leaveGuard);
+    window.removeEventListener("pagehide", this._exitSave);
+    document.removeEventListener("visibilitychange", this._hiddenSave);
   }
 
   run() {
@@ -43,6 +65,8 @@ export class MainWindow {
       document.title = APP_TITLE;
       this._root.replaceChildren(this._buildHeader(), this._buildNotebook());
       window.addEventListener("beforeunload", this._leaveGuard);
+      window.addEventListener("pagehide", this._exitSave);
+      document.addEventListener("visibilitychange", this._hiddenSave);
       this._showWarnings();
       this._tick();
       this._timers.push(setInterval(() => this._tick(), 1000));
@@ -142,7 +166,7 @@ export class MainWindow {
     if (!(await askYesNo("¿Seguro que quieres cerrar sesión?", APP_TITLE))) return;
     if (!(await this._confirmEndSession("cerrar sesión"))) return;
     for (const timer of this._timers) { clearInterval(timer); clearTimeout(timer); }
-    window.removeEventListener("beforeunload", this._leaveGuard);
+    this._removeExitHandlers();
     this._prompt?.dismiss();
     await wait(0);
     this._resolve();

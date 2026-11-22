@@ -472,6 +472,8 @@ sync(true);
 const timer = setInterval(() => { if (!document.hidden && root.offsetParent !== null && !menu) sync(); }, REFRESH_MS);
 return {
   refresh: () => sync(),
+  isEditing: () => editing !== null,
+  flush: () => commitEdit(),
   destroy() { clearInterval(timer); offs.forEach((off) => off()); closeMenu(); },
 };
 }
@@ -489,6 +491,10 @@ export class ExcelTab {
   }
 
   activate() { if (!this._sheet) this._renderList(); }
+
+  get hasPendingEdit() { return Boolean(this._sheet?.isEditing()); }
+
+  flush() { return this._sheet ? this._sheet.flush() : Promise.resolve(); }
 
   open(courseId) {
     if (!this._state.repository.get(courseId)) return;

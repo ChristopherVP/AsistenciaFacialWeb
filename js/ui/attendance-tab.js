@@ -3,9 +3,9 @@ import {
 } from "../config.js";
 import { AttendanceSession } from "../attendance.js";
 import { downloadBlob } from "../backup.js";
-import { AttendanceError, CameraError, StorageError } from "../errors.js";
+import { AttendanceError, CameraError, StorageError, ValidationError } from "../errors.js";
 import { Gallery } from "../face-engine.js";
-import { createCourse, parseTime } from "../models.js";
+import { courseCompleteSlot, createCourse, parseTime } from "../models.js";
 import { describeNext, dueCourses } from "../scheduler.js";
 import { Speaker } from "../voice.js";
 import { h, wait } from "./dom.js";
@@ -46,6 +46,7 @@ export class AttendanceTab {
     this._loopToken = 0;
     this._noticeTimer = null;
     this._final = null;
+    this._autoSlot = null;
     this._autoAttempts = new Set();
     this._speaker = new Speaker();
     this._savedOk = false;
@@ -230,6 +231,7 @@ export class AttendanceTab {
       await showWarning(`No hay estudiantes con registro completo en «${course.name}».\nRegistre el rostro de al menos un estudiante en la pestaña Cursos.`, APP_TITLE);
       return;
     }
+    this._autoSlot = null;
     await this._begin(course, null, false);
   }
 
@@ -262,6 +264,7 @@ export class AttendanceTab {
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor(endMinutes / 60), endMinutes % 60);
     await this._begin(course, end, true);
     if (this._session !== null) {
+      this._autoSlot = slot;
       this._speaker.speak(`La lista de ${course.name} va a empezar. Acérquese a la cámara para registrarse.`);
     }
   }
@@ -420,6 +423,8 @@ export class AttendanceTab {
   async finishSession() {
     const { _session: session, _course: course, _column: column } = this;
     if (session === null || course === null || column === null) return;
+    const autoSlot = this._autoSlot;
+    this._autoSlot = null;
     this._session = null;
     this._course = null;
     this._column = null;
@@ -452,8 +457,20 @@ export class AttendanceTab {
       this._showNotice(
         `Lista guardada · Presentes ${result.present} · Faltas ${result.total - result.present} · columna ${result.column_letter}`,
         "success", NOTICE_MS * 2);
+      if (autoSlot !== null) await this._completeSlot(course.course_id, autoSlot);
     }
     this._renderRoster();
+  }
+
+  async _completeSlot(courseId, slot) {
+    const latest = this._state.repository.get(courseId);
+    if (latest === null) return;
+    try {
+      await this._state.saveCourse(courseCompleteSlot(latest, slot, isoDay(new Date())));
+    } catch (error) {
+      if (!(error instanceof StorageError || error instanceof ValidationError)) throw error;
+      this._showNotice(`La lista se guardó, pero no se pudo marcar el horario como cumplido: ${error.message}`, "warning", NOTICE_MS * 2);
+    }
   }
 
   async _finalize(course, column, presentIds) {
