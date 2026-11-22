@@ -4,6 +4,7 @@ import { AttendanceTab } from "./attendance-tab.js";
 import { makeLogo } from "./branding.js";
 import { CoursesTab } from "./courses-tab.js";
 import { ExcelTab } from "./excel-tab.js";
+import { ScheduleReminders } from "./reminders.js";
 import { h, wait } from "./dom.js";
 import { askYesNo, showWarning } from "./messagebox.js";
 import { SavePrompt } from "./save-prompt.js";
@@ -26,6 +27,7 @@ export class MainWindow {
     this._attendance = new AttendanceTab(state);
     this._courses = new CoursesTab(state);
     this._settings = new SettingsTab(state);
+    this._reminders = new ScheduleReminders(state, { isBusy: () => this._attendance.isRunning });
     this._excel = new ExcelTab(state);
     this._tab = -1; this._before = 1;
     this._courses.onViewExcel = (id) => { this._excel.open(id); this._selectTab(EXCEL_TAB); };
@@ -101,6 +103,7 @@ export class MainWindow {
     const now = new Date();
     this._clock.textContent = clockText(now);
     this._attendance.onTick(now);
+    this._reminders.check(now);
   }
 
   _offerRemember() {

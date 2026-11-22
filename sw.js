@@ -1,14 +1,14 @@
 /* Service worker: la aplicación funciona sin internet tras la primera visita. */
-const VERSION = "asistencia-facial-v7";
+const VERSION = "asistencia-facial-v9";
 const CORE = [
-  "./", "./index.html", "./excel.html", "./manifest.webmanifest", "./css/estilos.css", "./icons/icon.svg",
+  "./", "./index.html", "./manifest.webmanifest", "./css/estilos.css", "./icons/icon.svg",
   "./icons/icon-192.png", "./icons/icon-512.png",
   "./js/main.js", "./js/config.js", "./js/errors.js", "./js/models.js", "./js/validators.js", "./js/scheduler.js",
   "./js/storage.js", "./js/auth.js", "./js/face-engine.js", "./js/model-loader.js", "./js/enrollment.js",
-  "./js/attendance.js", "./js/excel.js", "./js/camera.js", "./js/voice.js", "./js/backup.js", "./js/pwa.js", "./js/excel-view.js", "./js/sheet-model.js", "./js/excel-import.js",
+  "./js/attendance.js", "./js/excel.js", "./js/camera.js", "./js/voice.js", "./js/backup.js", "./js/pwa.js", "./js/sheet-model.js", "./js/excel-import.js",
   "./js/ui/dom.js", "./js/ui/messagebox.js", "./js/ui/branding.js", "./js/ui/widgets.js", "./js/ui/dialogs.js",
   "./js/ui/state.js", "./js/ui/save-prompt.js", "./js/ui/login.js", "./js/ui/main-window.js",
-  "./js/ui/attendance-tab.js", "./js/ui/courses-tab.js", "./js/ui/settings-tab.js",
+  "./js/ui/attendance-tab.js", "./js/ui/courses-tab.js", "./js/ui/settings-tab.js", "./js/ui/excel-tab.js", "./js/ui/reminders.js",
 ];
 // Pesados: se guardan sin bloquear la instalación (si falta alguno se guarda al usarlo).
 const HEAVY = [
@@ -57,5 +57,16 @@ self.addEventListener("fetch", (event) => {
       if (request.mode === "navigate") return (await cache.match("./index.html")) ?? Response.error();
       throw error;
     }
+  })());
+});
+
+// Al tocar el aviso de una lista programada: se abre (o se enfoca) la aplicación para iniciar sesión.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const target = windows.find((client) => client.visibilityState === "visible") ?? windows[0];
+    if (target) { await target.focus(); return; }
+    await self.clients.openWindow("./");
   })());
 });

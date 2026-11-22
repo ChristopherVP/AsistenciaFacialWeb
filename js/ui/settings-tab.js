@@ -5,6 +5,7 @@ import { AuthError, CameraError } from "../errors.js";
 import { installer } from "../pwa.js";
 import { CameraPreviewDialog } from "./dialogs.js";
 import { h } from "./dom.js";
+import { NOTICE_MINUTES, notificationStatus, requestNotifications } from "./reminders.js";
 import { showError } from "./messagebox.js";
 import { card } from "./widgets.js";
 
@@ -39,6 +40,7 @@ export class SettingsTab {
         h("button", { type: "button", class: "btn btn-primary", onClick: () => this._save() }, "💾  Guardar ajustes"),
         this._saveStatus),
       this._buildAccount(),
+      this._buildNotifications(),
       this._buildInstall());
   }
 
@@ -53,6 +55,27 @@ export class SettingsTab {
       h("p", { class: "hint", style: "margin:4px 0 0" },
         "Si lo desactiva, tendrá que escribir su contraseña cada vez que abra el programa."),
       this._accountStatus,
+    ], { padding: 18 });
+  }
+
+  _buildNotifications() {
+    this._notifyStatus = h("p", { class: "hint", style: "margin:8px 0 0", role: "status", "aria-live": "polite" }, notificationStatus());
+    const item = (title, text) => h("li", { style: "margin:6px 0" }, h("strong", {}, `${title} `), text);
+    return card([
+      h("h2", { class: "card-title" }, "🔔  Permiso de notificaciones"),
+      h("p", { class: "hint", style: "margin:4px 0 10px" },
+        "Para avisarle antes de una lista programada, el programa necesita su permiso para mostrar notificaciones en este dispositivo. Es opcional: sin el permiso todo lo demás funciona igual."),
+      h("button", { type: "button", class: "btn", onClick: async () => { await requestNotifications(); this._notifyStatus.textContent = notificationStatus(); } }, "🔔  Dar permiso de notificaciones"),
+      this._notifyStatus,
+      h("h3", { style: "margin:16px 0 4px;font-size:15px" }, "¿Qué le notificará el programa y por qué?"),
+      h("ul", { style: "margin:0;padding-left:20px;font-size:14px;line-height:1.45" },
+        item(`Cinco minutos antes de una lista programada (${NOTICE_MINUTES} min).`,
+          "Aparece un aviso con el nombre del curso y la hora. Al tocarlo se abre el programa para que inicie sesión. Sirve porque la lista automática solo arranca si el programa está abierto con la sesión iniciada."),
+        item("Un minuto antes.", "Una voz anuncia «Pronto iniciará la lista programada del curso …». Esto es un sonido del programa, no una notificación, y no necesita permiso."),
+        item("Solo si el programa está abierto.", "Puede estar minimizado, pero si lo cierra o el equipo está apagado o suspendido no se puede avisar."),
+        item("Un solo aviso.", "Si tiene la aplicación instalada, avisa la aplicación y el navegador no. Si no la tiene instalada, avisa el navegador."),
+        item("Nada más.", "No envía publicidad, no escribe a los estudiantes y no manda ningún dato fuera de este dispositivo."),
+        item("Puede quitar el permiso cuando quiera", "desde el candado junto a la dirección o desde la configuración de la aplicación.")),
     ], { padding: 18 });
   }
 
