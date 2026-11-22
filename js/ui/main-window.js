@@ -5,6 +5,7 @@ import { makeLogo } from "./branding.js";
 import { CoursesTab } from "./courses-tab.js";
 import { ExcelTab } from "./excel-tab.js";
 import { ScheduleReminders } from "./reminders.js";
+import { getThemePreference, resolveTheme, toggleTheme } from "../theme.js";
 import { h, wait } from "./dom.js";
 import { askYesNo, showWarning } from "./messagebox.js";
 import { SavePrompt } from "./save-prompt.js";
@@ -54,12 +55,26 @@ export class MainWindow {
     for (const warning of this._warnings) await showWarning(warning, APP_TITLE);
   }
 
+  /** Botón día/noche del encabezado: muestra a qué tema se cambiará. */
+  _buildThemeButton() {
+    const button = h("button", { type: "button", class: "btn-header", onClick: toggleTheme });
+    const refresh = () => {
+      const dark = resolveTheme(getThemePreference()) === "dark";
+      button.textContent = dark ? "☀️  Día" : "🌙  Noche";
+      button.title = dark ? "Cambiar al tema claro (día)" : "Cambiar al tema oscuro (noche)";
+    };
+    globalThis.addEventListener?.("af-theme", refresh);
+    refresh();
+    return button;
+  }
+
   _buildHeader() {
     const user = this._state.currentUser;
     return h("header", { class: "app-header" },
       makeLogo("logo"),
       h("div", { class: "header-titles" }, h("h1", {}, APP_TITLE), h("p", {}, APP_SUBTITLE)),
       user ? h("span", { class: "header-user" }, `👤  ${user.full_name}`) : null,
+      this._buildThemeButton(),
       h("button", { type: "button", class: "btn-header", onClick: () => this._logout() }, "Cerrar sesión"),
       this._clock);
   }

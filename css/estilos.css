@@ -282,3 +282,49 @@ dialog::backdrop { background: rgba(0, 0, 0, .45); }
 .xl-root .sheet td { height: 24px; min-width: 84px; }
 .xl-root .sheet td.blank { background: #fff; }
 .xl-root .sheet td.head.blank { background: #DDE7F1; color: #000; }
+
+/* ---------- Tema oscuro (se activa con data-theme="dark" en <html>) ---------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --primary: #1B4468; --primary-dark: #12304B; --success: #3FA66B; --danger: #D2574B; --warning: #D99A2B;
+  --bg: #0F141A; --card: #18202A; --text: #E6EDF3; --muted: #9AA7B4; --border: #2C3946; --zebra: #1C2530;
+  --select: #23435F; --accent: #5DADE2; --info-bg: #16283A; --gray: #8793A0; --field-border: #3B4A59;
+}
+:root[data-theme="dark"] .input { background: #0F1720; color: var(--text); }
+:root[data-theme="dark"] .input:disabled, :root[data-theme="dark"] .input[readonly] { background: #1A222B; }
+:root[data-theme="dark"] .btn:disabled { background: #2A333D; border-color: #2A333D; color: #6E7A86; }
+:root[data-theme="dark"] .progress { background: #2A333D; }
+:root[data-theme="dark"] .tab { background: #1E2832; }
+:root[data-theme="dark"] .camera-card, :root[data-theme="dark"] .time-picker { background: var(--card); }
+:root[data-theme="dark"] .save-prompt { background: var(--card); border-color: var(--border); }
+:root[data-theme="dark"] .save-prompt .pill { background: var(--card); }
+:root[data-theme="dark"] .save-prompt .pill:hover { background: #23435F; }
+:root[data-theme="dark"] .combo-arrow { color: var(--text); }
+:root[data-theme="dark"] .combo-menu { background: #1D2630; border-color: var(--border); }
+:root[data-theme="dark"] .combo-menu li { background: #1D2630; color: var(--text); }
+:root[data-theme="dark"] .combo-menu li:hover, :root[data-theme="dark"] .combo-menu li.active { background: #23435F; }
+:root[data-theme="dark"] .excel-frame { background: var(--card); }
+/* Hoja de Excel en modo oscuro */
+:root[data-theme="dark"] .xl-root { background: #18202A; }
+:root[data-theme="dark"] .xl-root .sheet-wrap { background: #10161C; }
+:root[data-theme="dark"] .xl-root table.sheet, :root[data-theme="dark"] .xl-root .sheet td.blank { background: #18202A; }
+:root[data-theme="dark"] .xl-root .sheet th, :root[data-theme="dark"] .xl-root .sheet td { border-color: #2F3B47; }
+:root[data-theme="dark"] .xl-root .sheet thead th, :root[data-theme="dark"] .xl-root .sheet tbody th { background: #222C37; color: #B9C4CF; }
+:root[data-theme="dark"] .xl-root .sheet td.head { background: #17395A; color: #fff; }
+:root[data-theme="dark"] .xl-root .sheet td.head.blank { background: #222C37; color: #B9C4CF; }
+:root[data-theme="dark"] .xl-root .sheet td.yes { color: #5FD18B; }
+:root[data-theme="dark"] .xl-root .sheet td.no { color: #F1807A; }
+:root[data-theme="dark"] .xl-root .sheet td.sel { background: #23435F !important; }
+:root[data-theme="dark"] .xl-root .sheet td.head.sel { background: #2F6EA8 !important; }
+:root[data-theme="dark"] .xl-root .sheet td.cur:not(.head) { background: #18202A !important; }
+:root[data-theme="dark"] .xl-root .sheet th.hl { background: #2B4258 !important; color: #fff; }
+:root[data-theme="dark"] .xl-root .sheet td[contenteditable="true"] { background: #0F1720 !important; color: #E6EDF3; }
+:root[data-theme="dark"] .xl-root .tools, :root[data-theme="dark"] .xl-root .tabs-bottom { background: #1D2630; border-color: #2F3B47; }
+:root[data-theme="dark"] .xl-root .tools .group { border-right-color: #2F3B47; }
+:root[data-theme="dark"] .xl-root .tools button:hover:not(:disabled) { background: #2A3B4D; border-color: #40607F; }
+:root[data-theme="dark"] .xl-root .fbar { background: #18202A; border-bottom-color: #2F3B47; }
+:root[data-theme="dark"] .xl-root .fbar input { background: #0F1720; color: #E6EDF3; border-color: #3B4A59; }
+:root[data-theme="dark"] .xl-root .tabs-bottom .sheet-tab { background: #18202A; border-color: #2F3B47; border-bottom-color: #3FA66B; color: #E6EDF3; }
+:root[data-theme="dark"] .xl-root .ctx { background: #1D2630; border-color: #2F3B47; }
+:root[data-theme="dark"] .xl-root .ctx button { color: #E6EDF3; }
+:root[data-theme="dark"] .xl-root .ctx button:hover, :root[data-theme="dark"] .xl-root .ctx button:focus { background: #2A3B4D; }

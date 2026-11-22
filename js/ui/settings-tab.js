@@ -5,6 +5,7 @@ import { AuthError, CameraError } from "../errors.js";
 import { installer } from "../pwa.js";
 import { CameraPreviewDialog } from "./dialogs.js";
 import { h } from "./dom.js";
+import { THEMES, getThemePreference, setThemePreference } from "../theme.js";
 import { NOTICE_MINUTES, notificationStatus, requestNotifications } from "./reminders.js";
 import { showError } from "./messagebox.js";
 import { card } from "./widgets.js";
@@ -39,6 +40,7 @@ export class SettingsTab {
       h("div", { class: "row", style: "margin-top:14px" },
         h("button", { type: "button", class: "btn btn-primary", onClick: () => this._save() }, "💾  Guardar ajustes"),
         this._saveStatus),
+      this._buildAppearance(),
       this._buildAccount(),
       this._buildNotifications(),
       this._buildInstall());
@@ -55,6 +57,19 @@ export class SettingsTab {
       h("p", { class: "hint", style: "margin:4px 0 0" },
         "Si lo desactiva, tendrá que escribir su contraseña cada vez que abra el programa."),
       this._accountStatus,
+    ], { padding: 18 });
+  }
+
+  _buildAppearance() {
+    const radios = Object.entries(THEMES).map(([value, label]) => {
+      const input = h("input", { type: "radio", name: "tema", value, checked: getThemePreference() === value, onChange: () => setThemePreference(value) });
+      return h("label", { class: "check", style: "margin:4px 0" }, input, label);
+    });
+    globalThis.addEventListener?.("af-theme", () => radios.forEach((label) => { label.firstChild.checked = label.firstChild.value === getThemePreference(); }));
+    return card([
+      h("h2", { class: "card-title" }, "🌓  Apariencia"),
+      h("p", { class: "hint", style: "margin:4px 0 8px" }, "Elija el tema de colores. También puede cambiarlo con el botón Día/Noche del encabezado. Se guarda en este dispositivo."),
+      radios,
     ], { padding: 18 });
   }
 

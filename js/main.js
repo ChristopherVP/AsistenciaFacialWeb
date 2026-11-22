@@ -6,9 +6,12 @@ import { BookRepository, CourseRepository, SettingsRepository } from "./storage.
 import { UserRepository } from "./auth.js";
 import { makeLogo } from "./ui/branding.js";
 import { h } from "./ui/dom.js";
+import { initTheme } from "./theme.js";
 import { runLogin } from "./ui/login.js";
 import { MainWindow } from "./ui/main-window.js";
 import { AppState } from "./ui/state.js";
+
+initTheme(); // tema claro/oscuro guardado
 
 const splash = {
   root: document.getElementById("splash"),
