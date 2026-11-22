@@ -23,21 +23,31 @@ function mountSheet(root, { state, courseId, onBack }) {
   const past = []; const future = [];
   let current = state.repository.get(courseId); let book = null; let lastJson = "";
   let menu = null; let editing = null; let dragging = null; let selMode = "cell"; let baseStatus = "";
+  let drafts = new Map(); let blankRows = 0;
   let grid = { cols: [], rows: [] }; let anchor = { c: 0, r: 1 }; let focus = { c: 0, r: 1 };
   box.tabIndex = 0;
 
 const say = (message) => { status.textContent = message; };
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
-const maxC = () => grid.cols.length - 1;
-const maxR = () => grid.rows.length; // fila 0 = encabezados
+const BLANK_COLS = 8; const MIN_ROWS = 30;
+const maxC = () => grid.cols.length + BLANK_COLS - 1;
+const maxR = () => grid.rows.length + blankRows; // fila 0 = encabezados
+const isBlankCol = (c) => c >= grid.cols.length;
+const isBlankRow = (r) => r > grid.rows.length;
 const rowAt = (r) => (r === 0 ? null : grid.rows[r - 1]);
 const idAt = (r) => rowAt(r)?.id ?? "";
 const range = () => ({ c1: Math.min(anchor.c, focus.c), c2: Math.max(anchor.c, focus.c), r1: Math.min(anchor.r, focus.r), r2: Math.max(anchor.r, focus.r) });
 const tdAt = (c, r) => box.querySelector(`td[data-c="${c}"][data-r="${r}"]`);
-const editableAt = (c, r) => (r === 0 ? sheet.kindOf(book, grid.cols[c]) === "extra" : sheet.isEditable(book, grid.cols[c]));
-const textAt = (c, r) => (r === 0 ? sheet.titleOf(book, grid.cols[c]) : String(sheet.display(book, grid.cols[c], rowAt(r))));
-const rawAt = (c, r) => (r === 0 ? sheet.titleOf(book, grid.cols[c]) : sheet.rawOf(book, grid.cols[c], rowAt(r)));
-const cellRef = (c, r) => `${sheet.columnLetterOf(grid.cols[c])}${r === 0 ? 1 : book.rows.indexOf(rowAt(r)) + 2}`;
+const colNumberAt = (c) => (isBlankCol(c) ? sheet.columnCount(book) + 1 + (c - grid.cols.length) : grid.cols[c]);
+const draftAt = (c, r) => { const col = grid.cols[c]; return col === 1 || col === 2 ? (drafts.get(r - grid.rows.length)?.[col === 1 ? "id" : "name"] ?? "") : ""; };
+const editableAt = (c, r) => {
+  if (isBlankCol(c)) return r === 0; // el encabezado de una columna vacía crea la columna
+  if (isBlankRow(r)) return grid.cols[c] === 1 || grid.cols[c] === 2; // cédula y nombre de un estudiante nuevo
+  return r === 0 ? sheet.kindOf(book, grid.cols[c]) === "extra" : sheet.isEditable(book, grid.cols[c]);
+};
+const textAt = (c, r) => (isBlankCol(c) ? "" : isBlankRow(r) ? draftAt(c, r) : r === 0 ? sheet.titleOf(book, grid.cols[c]) : String(sheet.display(book, grid.cols[c], rowAt(r))));
+const rawAt = (c, r) => (isBlankCol(c) ? "" : isBlankRow(r) ? draftAt(c, r) : r === 0 ? sheet.titleOf(book, grid.cols[c]) : sheet.rawOf(book, grid.cols[c], rowAt(r)));
+const cellRef = (c, r) => `${sheet.columnLetterOf(colNumberAt(c))}${r === 0 ? 1 : isBlankRow(r) ? book.rows.length + 1 + (r - grid.rows.length) : book.rows.indexOf(rowAt(r)) + 2}`;
 const round2 = (n) => Math.round(n * 100) / 100;
 
 /* ---------- Dibujo ---------- */
@@ -49,21 +59,31 @@ function render() {
   if (!current) { box.replaceChildren(h("p", { class: "empty" }, "Aún no hay cursos. Cree uno en el programa.")); return; }
   if (!book) { box.replaceChildren(h("p", { class: "empty" }, "Este curso aún no tiene Excel. Importe uno o registre un estudiante.")); return; }
   grid = { cols: sheet.visibleColumns(book), rows: sheet.visibleRows(book) };
+  blankRows = Math.max(MIN_ROWS - grid.rows.length, 10);
   anchor = { c: clamp(anchor.c, 0, maxC()), r: clamp(anchor.r, 0, maxR()) };
   focus = { c: clamp(focus.c, 0, maxC()), r: clamp(focus.r, 0, maxR()) };
   const cell = (c, r) => {
+    if (isBlankCol(c) || isBlankRow(r)) {
+      return h("td", { class: "blank", "data-c": c, "data-r": r, "data-col": grid.cols[c] ?? "", "data-id": "", contenteditable: "false" }, textAt(c, r));
+    }
     const col = grid.cols[c]; const row = grid.rows[r - 1];
     const value = sheet.display(book, col, row); const kind = sheet.kindOf(book, col);
     const cls = col === 3 ? "pct" : kind === "fixed" ? "" : `mark${value === 1 ? " yes" : value === 0 ? " no" : ""}`;
     return h("td", { class: cls, "data-c": c, "data-r": r, "data-col": col, "data-id": row.id, contenteditable: "false" }, String(value));
   };
-  const letters = h("tr", {}, h("th", { class: "corner", title: "Seleccionar todo" }), grid.cols.map((col, c) => h("th", { scope: "col", "data-hc": c }, sheet.columnLetterOf(col))));
-  const titles = h("tr", {}, h("th", { "data-hr": 0 }, "1"), grid.cols.map((col, c) =>
-    h("td", { class: "head", "data-c": c, "data-r": 0, "data-col": col, "data-id": "", contenteditable: "false" }, sheet.titleOf(book, col))));
-  const body = grid.rows.map((row, i) => h("tr", {}, h("th", { "data-hr": i + 1 }, String(book.rows.indexOf(row) + 2)), grid.cols.map((_, c) => cell(c, i + 1))));
+  const columns = Array.from({ length: maxC() + 1 }, (_, c) => c);
+  const letters = h("tr", {}, h("th", { class: "corner", title: "Seleccionar todo" }), columns.map((c) => h("th", { scope: "col", "data-hc": c }, sheet.columnLetterOf(colNumberAt(c)))));
+  const titles = h("tr", {}, h("th", { "data-hr": 0 }, "1"), columns.map((c) => (isBlankCol(c)
+    ? h("td", { class: "head blank", "data-c": c, "data-r": 0, "data-col": "", "data-id": "", contenteditable: "false", title: "Escriba aquí el nombre de una columna nueva" }, "")
+    : h("td", { class: "head", "data-c": c, "data-r": 0, "data-col": grid.cols[c], "data-id": "", contenteditable: "false" }, sheet.titleOf(book, grid.cols[c])))));
+  const body = Array.from({ length: maxR() }, (_, i) => {
+    const row = grid.rows[i];
+    const number = row ? book.rows.indexOf(row) + 2 : book.rows.length + 2 + (i - grid.rows.length);
+    return h("tr", {}, h("th", { "data-hr": i + 1 }, String(number)), columns.map((c) => cell(c, i + 1)));
+  });
   box.replaceChildren(h("table", { class: "sheet", "aria-label": `Asistencia de ${current.name}` }, h("thead", {}, letters), h("tbody", {}, titles, body)));
   const hidden = book.hidden.cols.length + book.hidden.rows.length;
-  baseStatus = `${book.rows.length} estudiante(s) · ${book.columns.length} lista(s)${hidden ? ` · ${hidden} oculta(s): clic derecho → Mostrar` : ""}`;
+  baseStatus = `${book.rows.length} estudiante(s) · ${book.columns.length} lista(s) · escriba en las filas vacías para agregar estudiantes y en la fila 1 para columnas nuevas${hidden ? ` · ${hidden} oculta(s): clic derecho → Mostrar` : ""}`;
   paint();
 }
 
@@ -135,15 +155,48 @@ async function addPending(list) {
   return fresh.length;
 }
 
-async function addStudent() {
+/** Lleva el cursor a la primera fila vacía para escribir la cédula (como en Excel). */
+function addStudent() {
+  const c = grid.cols.indexOf(1);
+  if (c < 0) { say("⚠ La columna Cédula está oculta: use «Mostrar todo»."); return; }
+  const r = grid.rows.length + 1;
+  setSelection({ c, r }, { c, r }, "cell", true);
+  startEdit(c, r);
+}
+
+function completeDraft(k) {
+  drafts.delete(k);
+  drafts = new Map([...drafts].map(([key, value]) => [key > k ? key - 1 : key, value]));
+}
+
+/** Cédula + nombre completos en una fila vacía: se guarda el estudiante en el curso y en la hoja. */
+async function draftCell(col, k, text) {
+  const field = col === 1 ? "id" : "name";
+  const draft = { id: "", name: "", ...drafts.get(k), [field]: text };
   try {
-    const id = validateCedula(prompt("Cédula (10 dígitos):") ?? "");
-    const name = normalizeFullName(prompt("Apellidos y nombres:") ?? "");
-    await addPending([{ id, name }]);
-    await apply((b) => sheet.addRow(b, { id, name }));
+    if (draft.id) draft.id = validateCedula(draft.id);
+    if (draft.name) draft.name = normalizeFullName(draft.name);
   } catch (error) {
-    if (error.message) say(`⚠ ${error.message}`);
+    draft[field] = ""; drafts.set(k, draft); render(); say(`⚠ ${error.message}`); return;
   }
+  if (!draft.id || !draft.name) {
+    if (draft.id || draft.name) drafts.set(k, draft); else drafts.delete(k);
+    render();
+    say(draft.id ? "Falta el nombre y apellidos para guardar al estudiante." : draft.name ? "Falta la cédula para guardar al estudiante." : baseStatus);
+    return;
+  }
+  if (book.rows.some((row) => row.id === draft.id)) { draft.id = ""; drafts.set(k, draft); render(); say("⚠ Esa cédula ya está en la hoja."); return; }
+  try { await addPending([draft]); } catch (error) { render(); say(`⚠ ${error.message}`); return; }
+  completeDraft(k);
+  await apply((b) => sheet.addRow(b, draft));
+  say("✔ Estudiante guardado en el curso. Falta registrar su rostro en la pestaña Cursos.");
+}
+
+/** Guarda lo escrito en una celda (existente o vacía). */
+async function commitText(c, r, col, id, text) {
+  if (isBlankCol(c)) { if (text) await apply((b) => sheet.addExtra(b, text)); else render(); return; } // columna nueva
+  if (isBlankRow(r)) { await draftCell(col, r - grid.rows.length, text); return; } // estudiante nuevo
+  await apply((b) => sheet.setCell(b, col, id, text));
 }
 
 async function importFile(file) {
@@ -159,7 +212,11 @@ async function importFile(file) {
   }
 }
 
-const newColumn = () => { const title = prompt("Nombre de la columna (ej.: Participación):"); if (title !== null) apply((b) => sheet.addExtra(b, title)); };
+const newColumn = () => { // cursor al encabezado de la primera columna vacía
+  const c = grid.cols.length;
+  setSelection({ c, r: 0 }, { c, r: 0 }, "cell", true);
+  startEdit(c, 0);
+};
 
 /* ---------- Acciones sobre la selección ---------- */
 
@@ -187,12 +244,16 @@ function deleteRows() {
 }
 function clearSelection() {
   const { c1, c2, r1, r2 } = range(); const jobs = [];
-  for (let r = Math.max(r1, 1); r <= r2; r += 1) for (let c = c1; c <= c2; c += 1) if (editableAt(c, r) && grid.cols[c] !== 2) jobs.push([grid.cols[c], idAt(r)]);
-  if (jobs.length) apply((b) => jobs.reduce((acc, [col, id]) => sheet.setCell(acc, col, id, ""), b));
+  for (let r = Math.max(r1, 1); r <= r2; r += 1) {
+    if (isBlankRow(r)) { drafts.delete(r - grid.rows.length); continue; }
+    for (let c = c1; c <= c2; c += 1) if (!isBlankCol(c) && editableAt(c, r) && grid.cols[c] !== 2) jobs.push([grid.cols[c], idAt(r)]);
+  }
+  if (jobs.length) apply((b) => jobs.reduce((acc, [col, id]) => sheet.setCell(acc, col, id, ""), b)); else render();
 }
 function fillDown() {
   const { c1, c2, r1, r2 } = range(); const top = Math.max(r1, 1); const jobs = [];
-  for (let c = c1; c <= c2; c += 1) for (let r = top + 1; r <= r2; r += 1) if (editableAt(c, r) && grid.cols[c] !== 2) jobs.push([grid.cols[c], idAt(r), rawAt(c, top)]);
+  if (isBlankRow(top)) return;
+  for (let c = c1; c <= c2; c += 1) for (let r = top + 1; r <= r2; r += 1) if (!isBlankCol(c) && !isBlankRow(r) && editableAt(c, r) && grid.cols[c] !== 2) jobs.push([grid.cols[c], idAt(r), rawAt(c, top)]);
   if (jobs.length) apply((b) => jobs.reduce((acc, [col, id, v]) => sheet.setCell(acc, col, id, v), b));
 }
 function selectionText() {
@@ -201,19 +262,36 @@ function selectionText() {
   return lines.join("\n");
 }
 function pasteText(text) {
-  const { c1, r1 } = range(); const jobs = [];
+  const { c1, r1 } = range(); const jobs = []; const fresh = new Map();
   text.replace(/\r/g, "").replace(/\n$/, "").split("\n").forEach((line, i) => line.split("\t").forEach((value, j) => {
     const c = c1 + j; const r = Math.max(r1, 1) + i;
-    if (c <= maxC() && r <= maxR() && editableAt(c, r)) jobs.push([grid.cols[c], idAt(r), value]);
+    if (c > maxC() || isBlankCol(c)) return;
+    if (isBlankRow(r)) { // filas vacías: cédula + nombre crean estudiantes nuevos
+      const col = grid.cols[c];
+      if (col === 1 || col === 2) fresh.set(i, { ...fresh.get(i), [col === 1 ? "id" : "name"]: value.trim() });
+    } else if (editableAt(c, r)) jobs.push([grid.cols[c], idAt(r), value]);
   }));
-  if (!jobs.length) { say("⚠ No hay dónde pegar ahí."); return; }
-  apply((b) => jobs.reduce((acc, [col, id, value]) => { try { return sheet.setCell(acc, col, id, value); } catch { return acc; } }, b));
+  const students = new Map();
+  for (const draft of fresh.values()) {
+    try { if (draft.id && draft.name && !book.rows.some((row) => row.id === draft.id)) students.set(validateCedula(draft.id), { id: validateCedula(draft.id), name: normalizeFullName(draft.name) }); } catch { /* fila inválida: se omite */ }
+  }
+  const added = [...students.values()];
+  if (!jobs.length && !added.length) { say("⚠ No hay dónde pegar ahí."); return; }
+  (async () => {
+    if (added.length) await addPending(added);
+    await apply((b) => added.reduce((acc, student) => { try { return sheet.addRow(acc, student); } catch { return acc; } },
+      jobs.reduce((acc, [col, id, value]) => { try { return sheet.setCell(acc, col, id, value); } catch { return acc; } }, b)));
+    if (added.length) say(`✔ ${added.length} estudiante(s) guardados en el curso. Falta registrar su rostro en la pestaña Cursos.`);
+  })();
 }
 
 /* ---------- Edición de una celda ---------- */
 
 function startEdit(c, r, first = null) {
-  if (!editableAt(c, r)) { say("⚠ Esa celda no se puede editar."); return; }
+  if (!editableAt(c, r)) {
+    say(isBlankCol(c) ? "Primero escriba el nombre de la columna en su encabezado (fila 1)." : isBlankRow(r) ? "Para agregar un estudiante use las columnas Cédula y Apellidos y nombres." : "⚠ Esa celda no se puede editar.");
+    return;
+  }
   const td = tdAt(c, r); const original = rawAt(c, r);
   td.contentEditable = "true";
   td.textContent = first ?? original;
@@ -227,7 +305,7 @@ async function commitEdit(dc = 0, dr = 0) {
   if (!editing) return;
   const { td, c, r, col, id, original } = editing; const text = td.textContent.trim();
   editing = null; td.contentEditable = "false";
-  if (text !== original.trim()) await apply((b) => sheet.setCell(b, col, id, text)); else td.textContent = textAt(c, r);
+  if (text !== original.trim()) await commitText(c, r, col, id, text); else td.textContent = textAt(c, r);
   const to = { c: clamp(c + dc, 0, maxC()), r: clamp(r + dr, 0, maxR()) };
   setSelection(to, to, "cell", true);
   box.focus({ preventScroll: true });
@@ -345,7 +423,7 @@ $("formula").addEventListener("keydown", (event) => {
   if (event.key !== "Enter") return;
   const { c, r } = focus;
   if (!editableAt(c, r)) { say("⚠ Esa celda no se puede editar."); return; }
-  apply((b) => sheet.setCell(b, grid.cols[c], idAt(r), $("formula").value)).then(() => box.focus());
+  commitText(c, r, grid.cols[c], idAt(r), $("formula").value.trim()).then(() => box.focus());
 });
 
 /* ---------- Descarga y carga ---------- */
@@ -367,8 +445,8 @@ async function sync(force = false) {
   const next = stored ? sheet.normalize(stored) : null;
   if (!force && JSON.stringify(next) === lastJson) return;
   past.length = 0; future.length = 0;
-  book = next;
-  lastJson = JSON.stringify(book);
+  book = next ?? sheet.normalize({ course_id: courseId, sheet_title: current.name, rows: [], columns: [] }); // hoja en blanco hasta el primer cambio
+  lastJson = JSON.stringify(next);
   $("titulo").textContent = `📗  ${excelFileName(current.name)}`;
   $("nombre-hoja").textContent = (book?.sheet_title || current.name).slice(0, 31);
   $("descargar").disabled = false;

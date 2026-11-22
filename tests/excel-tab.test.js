@@ -34,17 +34,39 @@ test("pestaña Excel: archivos por curso, abrir hoja, selección múltiple, ocul
   assert.equal(document.querySelectorAll("td.sel").length, 4);
   assert.equal(document.getElementById("celda").value, "D2:E3");
   document.getElementById("ocultar-col").click();
-  await wait(() => document.querySelectorAll("th[data-hc]").length === 4);
-  assert.equal(document.querySelectorAll("th[data-hc]").length, 4);
+  await wait(() => document.querySelectorAll("th[data-hc]").length === 12);
+  assert.equal(document.querySelectorAll("th[data-hc]").length, 12);
   document.getElementById("mostrar").click();
-  await wait(() => document.querySelectorAll("th[data-hc]").length === 6);
+  await wait(() => document.querySelectorAll("th[data-hc]").length === 14);
   fire(document.querySelector('th[data-hc="3"]'), "mousedown"); fire(document.querySelector('th[data-hc="4"]'), "mousemove"); fire(document.body, "mouseup");
   document.getElementById("col-borrar").click();
-  await wait(() => document.querySelectorAll("th[data-hc]").length === 4);
-  assert.equal(document.querySelectorAll("th[data-hc]").length, 4);
+  await wait(() => document.querySelectorAll("th[data-hc]").length === 12);
+  assert.equal(document.querySelectorAll("th[data-hc]").length, 12);
 
   document.getElementById("volver").click(); // vuelve a la lista de archivos
   await wait(() => !document.querySelector("table.sheet"));
   assert.equal(document.querySelectorAll("table.sheet").length, 0);
   assert.match(tab.el.textContent, /Mis hojas de asistencia/);
+
+  // Curso sin Excel: hoja en blanco; escribir cédula + nombre guarda al estudiante en el curso
+  await putRecord("courses", { course_id: "c2", name: "Vacío", students: [], slots: [], schedule_enabled: false, last_auto_date: "" });
+  await state.repository.reload();
+  tab.open("c2");
+  await wait(() => document.querySelector("table.sheet"));
+  assert.ok(document.querySelectorAll("td.blank").length > 100, "hay celdas vacías como en Excel");
+  const typeIn = async (c, r, text) => {
+    td(c, r).dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true }));
+    td(c, r).textContent = text;
+    td(c, r).dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  };
+  await typeIn(0, 1, "1710034065");
+  assert.equal(state.repository.get("c2").students.length, 0, "falta el nombre: aún no se guarda");
+  await typeIn(1, 1, "perez lopez juan");
+  await wait(() => state.repository.get("c2").students.length === 1);
+  assert.equal(state.repository.get("c2").students[0].student_id, "1710034065");
+  assert.match(document.querySelector("table.sheet").textContent, /1710034065/);
+  await typeIn(grid_cols(), 0, "Participación");
+  assert.match(document.querySelector("table.sheet").textContent, /Participación/);
+  function grid_cols() { return document.querySelectorAll("td.head:not(.blank)").length; }
 });
