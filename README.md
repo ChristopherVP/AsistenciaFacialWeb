@@ -72,10 +72,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 **Settings and appearance**
 - Camera chooser with live preview and a clear “in use” badge; virtual cameras (OBS and similar) are ignored.
 - **Light (day) and dark (night) themes**, switchable from a Day/Night button in the header.
-<<<<<<< HEAD
-- **Device permissions** card with the live status of the camera and notifications, buttons to request each one and step-by-step guides for **PC, Android and iPhone/iPad** (the ⋮ window menu does not exist on phones). The guide for your device opens automatically.
-=======
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
+- **Device permissions** card with the live status of the camera and notifications, a button to request the camera and a guide for **PC, Android and iPhone/iPad** on how to turn the camera on and give it permission (the ⋮ window menu does not exist on phones). The notifications card has its own button and its own per-device guide. The guide for your device opens automatically.
 - Opt-in **notification permission** for schedule reminders and an **Install application** button.
 - *My account* panel to enable or disable one-click login.
 
@@ -97,11 +94,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 | FR-03 | Create, rename and delete courses with unique (case-insensitive) names. |
 | FR-04 | Register students with cédula, name and a guided face scan of 5 frontal samples; reject duplicated cédulas and faces already registered under another cédula in any course. |
 | FR-05 | Recognize students through the camera and mark them present after consecutive confirmations. |
-<<<<<<< HEAD
 | FR-06 | Define weekly time slots per course (each one **at most 1 hour long**) and run **automatic attendance lists** inside them, once per day. |
-=======
-| FR-06 | Define weekly time slots per course and run **automatic attendance lists** inside them, once per day. |
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 | FR-07 | Notify the user before a scheduled list (system notification 5 minutes before, voice 1 minute before). |
 | FR-08 | Keep one attendance book per course with one column per list and a percentage column. |
 | FR-09 | Show the book in an **Excel-style editor** with editable cells, extra columns, formulas, row and column insertion and deletion, undo / redo and clipboard support. |
@@ -112,10 +105,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 | FR-14 | Choose and preview the camera, and ignore virtual cameras. |
 | FR-15 | Offer a light (day) and a dark (night) theme. |
 | FR-16 | Work offline and be installable as a PWA. |
-<<<<<<< HEAD
 | FR-17 | Let the user request and fix the camera and notification permissions from *Ajustes*, with separate instructions for PC, Android and iPhone/iPad. |
-=======
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 
 ### Non-functional requirements
 
@@ -217,17 +207,10 @@ The main window has a header (logo, user name, **Día/Noche** theme button, **Ce
 2. **Create a course.** *📚 Cursos → ➕ Nuevo curso*. Each course gets its own Excel file. Courses can be renamed (✏) or deleted (🗑); deleting a course also deletes its stored attendance.
 3. **Register students.** Select the course and press **➕ Agregar estudiante**. Enter the cédula and the full name (surnames first, e.g. `PÉREZ GÓMEZ JUAN CARLOS`), tick the consent box, press **Iniciar escaneo facial** and look at the camera: the system captures 5 frontal samples and guides you by voice. **Quitar seleccionado** removes a student.
 4. **Finish a pending registration.** Students shown as `⏳ Falta rostro` (added from the Excel tab or imported) are selected in the list and completed with **✔ Terminar registro**.
-<<<<<<< HEAD
 5. **Set a schedule** *(optional)*. In *⏰ Horario de lista automática* press **➕ Agregar horario**, pick the weekdays and the start and end times (a list lasts **at most 1 hour**: the end time follows the start time and is capped automatically), and turn the automatic list on. The course chip shows *SIN HORARIO*, *AUTOMÁTICA APAGADA* or *AUTOMÁTICA ACTIVA*.
 6. **Take attendance.** *📷 Tomar lista*: type or pick the course, press start and let the camera recognize the students. Press **■ Finalizar y guardar** to close the list; absent students are saved as `0`. The list also closes by itself when everybody is present or, for automatic lists, when the time slot ends.
 7. **View, edit or download the Excel.** In *📚 Cursos* press **👁 Ver Excel** (opens that course in the *📊 Excel* tab) or **⬇ Descargar**.
 8. **Settings.** *⚙ Ajustes*: choose and test the camera, pick the theme, request or fix the **device permissions** (camera and notifications, with guides for PC, Android and iPhone), install the app and manage one-click login.
-=======
-5. **Set a schedule** *(optional)*. In *⏰ Horario de lista automática* press **➕ Agregar horario**, pick the weekdays and the start and end times, and turn the automatic list on. The course chip shows *SIN HORARIO*, *AUTOMÁTICA APAGADA* or *AUTOMÁTICA ACTIVA*.
-6. **Take attendance.** *📷 Tomar lista*: type or pick the course, press start and let the camera recognize the students. Press **■ Finalizar y guardar** to close the list; absent students are saved as `0`. The list also closes by itself when everybody is present or, for automatic lists, when the time slot ends.
-7. **View, edit or download the Excel.** In *📚 Cursos* press **👁 Ver Excel** (opens that course in the *📊 Excel* tab) or **⬇ Descargar**.
-8. **Settings.** *⚙ Ajustes*: choose and test the camera, pick the theme, grant the notification permission, install the app and manage one-click login.
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 
 ---
 
@@ -307,11 +290,7 @@ The `.xlsx` is built with a local copy of SheetJS (`xlsx-js-style`): blue bold h
 ## Automatic Lists and Reminders
 
 **Automatic lists** (*Cursos → Horario de lista automática*)
-<<<<<<< HEAD
 - Each course can have several weekly slots (weekdays, start, end), each lasting **at most 1 hour**. With the schedule turned on, the list starts by itself the first time the app sees the current time inside a slot, **once per day** per course.
-=======
-- Each course can have several weekly slots (weekdays, start, end). With the schedule turned on, the list starts by itself the first time the app sees the current time inside a slot, **once per day** per course.
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 - Only students with a completed face registration take part. If none has one, the list is skipped with a notice.
 - The camera opens, the window is focused, a voice announces the list and a countdown shows the time left. One minute before the slot ends a voice warns the class, and the list is saved when the slot ends.
 - The app (or its installed window) must be **open and signed in**: browsers throttle or suspend timers in closed or hidden tabs.
@@ -403,10 +382,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | `excel.js` / `excel-import.js` | Styled `.xlsx` export and `.xlsx` import (SheetJS, loaded on demand). |
 | `camera.js` / `voice.js` | Camera enumeration, opening and drawing; Spanish speech synthesis that prefers a female voice. |
 | `theme.js` | Light / dark theme, stored in the browser and synchronized between windows. |
-<<<<<<< HEAD
 | `permissions.js` | Device detection (PC, Android, iPhone/iPad), permission states and the step-by-step texts for camera, notifications and installation. |
-=======
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 | `backup.js` | `downloadBlob` (used by every download) and the JSON backup export / import functions (see [Known Limitations](#known-limitations)). |
 | `pwa.js` | Service worker registration and the install prompt. |
 | `diagnostico.js` | Logic of the diagnostics page. |
@@ -462,11 +438,7 @@ Other details:
 
 ## Offline Mode and Service Worker
 
-<<<<<<< HEAD
 `sw.js` (cache name `asistencia-facial-v11`):
-=======
-`sw.js` (cache name `asistencia-facial-v10`):
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 
 - **Install:** pre-caches the application shell (HTML, CSS, every JS module, icons and manifest) and, without blocking the installation, the heavy files (the two ONNX models, the onnxruntime-web files and `xlsx.bundle.js`).
 - **Application code:** *network-first* (`cache: "no-cache"`), so you always get the latest version when online and the cached copy when offline.
@@ -498,10 +470,7 @@ Defined in `js/config.js`:
 | `PBKDF2_ITERATIONS` | 200,000 | Password hashing cost. |
 | `MAX_LOGIN_ATTEMPTS` / `LOCKOUT_SECONDS` | 5 / 30 | Brute-force protection. |
 | `NOTICE_MS` | 4000 | Duration of on-screen notices. |
-<<<<<<< HEAD
 | `MAX_SLOT_MINUTES` | 60 | Longest allowed duration of a scheduled list. |
-=======
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 | `EXCEL_SUFFIX` | `_ListaAsistencia.xlsx` | File name suffix of each course's Excel. |
 
 ---
@@ -521,11 +490,7 @@ AsistenciaFacialWeb/
 ├── js/
 │   ├── main.js                 # Boot: theme, models, repositories, login loop
 │   ├── config.js · errors.js · models.js · validators.js · scheduler.js
-<<<<<<< HEAD
 │   ├── storage.js · auth.js · backup.js · pwa.js · theme.js · permissions.js
-=======
-│   ├── storage.js · auth.js · backup.js · pwa.js · theme.js
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 │   ├── face-engine.js · model-loader.js · enrollment.js · attendance.js
 │   ├── camera.js · voice.js · diagnostico.js
 │   ├── excel.js · excel-import.js · sheet-model.js
@@ -564,10 +529,7 @@ npm test
 | `reminders.test.js` | Notification 5 minutes before and voice 1 minute before, permission and duplicate rules, installed app versus browser. |
 | `pwa.test.js` | Service worker file list, every JS module cached, installable manifest. |
 | `theme.test.js` | Light / dark theme persistence. |
-<<<<<<< HEAD
 | `permisos-horario.test.js` | Device detection and permission texts, the 1-hour slot limit (and legacy courses) and the schedule dialog. |
-=======
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 | `ui.test.js` | Full interface flow: account → courses → schedule → attendance list → Excel. |
 
 Manual check:
@@ -620,22 +582,14 @@ This is an **educational project**, not a certified attendance or proctoring sys
 |---------|----------|
 | `"py" no se reconoce como un comando` | Use `python -m http.server 8000`, `npm run servir`, or install Python and tick **Add python.exe to PATH**. |
 | The page does not load or the camera does not start | Open it through `http://localhost:8000` (or HTTPS), never as `file://`. |
-<<<<<<< HEAD
 | The camera asks for no permission / shows no cameras | Open *Ajustes → Permisos del dispositivo*, press **📷 Permitir cámara** and, if it is blocked, follow the steps for your device (PC, Android or iPhone). Then press **🔄 Buscar cámaras**. |
 | On the phone there is no ⋮ menu to give permissions | Use *Ajustes → Permisos del dispositivo*: it requests the permissions directly and explains how to unblock them from the phone's own settings. |
-=======
-| The camera asks for no permission / shows no cameras | Allow the camera from the padlock in the address bar and press **🔄 Buscar cámaras** in *Ajustes*. |
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
 | *Error loading models* / “modelo incompleto” | Check that both `.onnx` files are in `modelos/` and that the large one is about 37 MB; if it is a few KB you downloaded an HTML page or a Git LFS pointer. Press **Reintentar**. |
 | I changed the code but I still see the old version | Hard-reload (`Ctrl + Shift + R`), unregister the service worker in DevTools, or increase `VERSION` in `sw.js`. |
 | A student is not recognized | Improve lighting, face the camera, or raise the tolerance (see [Precision levels](#precision-levels)). Re-registering the student with better samples also helps. |
 | Two people are confused | Use the *Estricto* level and register the students again with better samples. |
 | The automatic list did not start | The app must be open and signed in, the course must have the schedule turned on, at least one student with a completed face registration, and the list for that day must not have been taken already. |
-<<<<<<< HEAD
-| I do not get notifications | Press **🔔 Permitir notificaciones** in *Ajustes → Permisos del dispositivo*; if it is blocked, follow the steps for your device. On iPhone/iPad the app must be added to the Home Screen (iOS 16.4+). |
-=======
-| I do not get notifications | Grant the permission in *Ajustes → Dar permiso de notificaciones*; if it is blocked, allow it from the padlock in the address bar (or the installed app's settings). |
->>>>>>> d77ca2cbc19f8a21baa858f61548c4003830bfc0
+| I do not get notifications | Press **🔔 Dar permiso de notificaciones** in *Ajustes → Permiso de notificaciones*; if it is blocked, follow the guide for your device in that same card. On iPhone/iPad the app must be added to the Home Screen (iOS 16.4+). |
 | The login page shows a saved-user card but I do not want it | Log in normally and untick *«Entrar con un clic»* in *Ajustes → Mi cuenta*. |
 | My data disappeared | The browser's site data was cleared or you opened a different domain (`localhost` and the published site do not share data). |
 | `npm test` never ends | Use the project script (`npm test`), which runs Node with `--test-force-exit`. |

@@ -103,11 +103,6 @@ export class SettingsTab {
     this._cameraPermission = h("p", { style: "margin:10px 0 0", role: "status", "aria-live": "polite" });
     this._notificationPermission = h("p", { style: "margin:4px 0 0", role: "status", "aria-live": "polite" });
     const permitCamera = async () => { await this.refreshCameras(); await this.refreshPermissions(); };
-    const permitNotifications = async () => {
-      await requestNotifications();
-      this._notifyStatus.textContent = notificationStatus();
-      await this.refreshPermissions();
-    };
     globalThis.document?.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") this.refreshPermissions();
     });
@@ -116,17 +111,15 @@ export class SettingsTab {
       h("h2", { class: "card-title" }, "🔐  Permisos del dispositivo"),
       h("p", { class: "hint", style: "margin:4px 0 10px" },
         "Desde aquí puede pedir cada permiso y ver su estado, sin usar el menú ⋮ de la ventana (que no existe en el celular). " +
-        "La cámara es necesaria para tomar lista; las notificaciones son opcionales."),
+        "La cámara es necesaria para tomar lista; las notificaciones son opcionales y se activan más abajo."),
       h("div", { class: "row", style: "flex-wrap:wrap" },
         h("button", { type: "button", class: "btn", onClick: permitCamera }, "📷  Permitir cámara"),
-        h("button", { type: "button", class: "btn", onClick: permitNotifications }, "🔔  Permitir notificaciones"),
         h("button", { type: "button", class: "btn", onClick: () => this.refreshPermissions() }, "🔄  Actualizar estado")),
       this._cameraPermission,
       this._notificationPermission,
       h("p", { class: "hint", style: "margin:10px 0 0" },
         "Si un permiso quedó bloqueado, el navegador ya no vuelve a preguntar: hay que activarlo a mano. Elija su dispositivo:"),
-      this._guide("📷  Cómo activar la cámara", "camera"),
-      this._guide("🔔  Cómo activar las notificaciones", "notifications"),
+      this._guide("📷  Cómo prender la cámara y darle permiso", "camera"),
       this._guide("📲  Cómo instalar la aplicación", "install"),
     ], { padding: 18 });
   }
@@ -141,6 +134,7 @@ export class SettingsTab {
     }
     this._cameraPermission.textContent = `Cámara: ${camera}`;
     this._notificationPermission.textContent = `Notificaciones: ${NOTIFICATION_STATE_TEXT[notificationState()] ?? NOTIFICATION_STATE_TEXT.unsupported}`;
+    if (this._notifyStatus) this._notifyStatus.textContent = notificationStatus();
   }
 
   _buildNotifications() {
@@ -150,8 +144,9 @@ export class SettingsTab {
       h("h2", { class: "card-title" }, "🔔  Permiso de notificaciones"),
       h("p", { class: "hint", style: "margin:4px 0 10px" },
         "Para avisarle antes de una lista programada, el programa necesita su permiso para mostrar notificaciones en este dispositivo. Es opcional: sin el permiso todo lo demás funciona igual."),
-      h("button", { type: "button", class: "btn", onClick: async () => { await requestNotifications(); this._notifyStatus.textContent = notificationStatus(); } }, "🔔  Dar permiso de notificaciones"),
+      h("button", { type: "button", class: "btn", onClick: async () => { await requestNotifications(); await this.refreshPermissions(); } }, "🔔  Dar permiso de notificaciones"),
       this._notifyStatus,
+      this._guide("📖  Cómo activar las notificaciones en su dispositivo", "notifications"),
       h("h3", { style: "margin:16px 0 4px;font-size:15px" }, "¿Qué le notificará el programa y por qué?"),
       h("ul", { style: "margin:0;padding-left:20px;font-size:14px;line-height:1.45" },
         item(`Cinco minutos antes de una lista programada (${NOTICE_MINUTES} min).`,

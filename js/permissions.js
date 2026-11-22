@@ -19,18 +19,21 @@ export const notificationState = () =>
 const STEPS = Object.freeze({
   camera: Object.freeze({
     desktop: Object.freeze([
-      "En el navegador: pulse el candado 🔒 (o el icono de ajustes) junto a la dirección → Cámara → Permitir, y recargue la página.",
+      "Si su computador tiene tapa o interruptor de la cámara, ábralo. Luego pulse «📷 Permitir cámara» en esta pantalla y, en el aviso del navegador, elija «Permitir».",
+      "Si el aviso no aparece o ya lo bloqueó, en el navegador pulse el candado 🔒 (o el icono de ajustes) junto a la dirección → Cámara → Permitir, y recargue la página.",
       "En la aplicación instalada: abra el menú ⋮ de la ventana (arriba a la derecha) → Configuración de la aplicación → Cámara → Permitir.",
       "Si la cámara sigue sin verse: en Windows abra Configuración → Privacidad y seguridad → Cámara y permita el acceso; cierre otros programas que la usen (Zoom, Teams, OBS).",
     ]),
     android: Object.freeze([
-      "En Chrome: pulse el icono a la izquierda de la dirección (candado o ajustes) → Permisos → Cámara → Permitir, y recargue la página.",
+      "Pulse «📷 Permitir cámara» en esta pantalla y, en el aviso, elija «Permitir» o «Mientras la app está en uso».",
+      "Si el aviso no aparece o ya lo bloqueó, en Chrome pulse el icono a la izquierda de la dirección (candado o ajustes) → Permisos → Cámara → Permitir, y recargue la página.",
       "Si instaló la aplicación: mantenga pulsado su icono → Información de la aplicación (ⓘ) → Permisos → Cámara → Permitir solo mientras se usa la aplicación.",
       "Otra vía: Ajustes del teléfono → Aplicaciones → Chrome (o Asistencia Facial) → Permisos → Cámara → Permitir.",
       "Cierre otras aplicaciones que estén usando la cámara.",
     ]),
     ios: Object.freeze([
-      "En Safari: toque «aA» junto a la dirección → Configuración del sitio web → Cámara → Permitir, y recargue la página.",
+      "Pulse «📷 Permitir cámara» en esta pantalla y, en el aviso, elija «Permitir».",
+      "Si el aviso no aparece o ya lo bloqueó, en Safari toque «aA» junto a la dirección → Configuración del sitio web → Cámara → Permitir, y recargue la página.",
       "También: Ajustes del iPhone → Apps → Safari → Cámara → Preguntar o Permitir (en iOS anteriores a 18: Ajustes → Safari → Cámara).",
       "Si usa Chrome en iPhone: Ajustes → Chrome → Cámara → activar.",
       "Si agregó la aplicación a la pantalla de inicio, ábrala desde ese icono y elija «Permitir» cuando aparezca el aviso de la cámara.",
