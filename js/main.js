@@ -1,7 +1,7 @@
 import { APP_TITLE } from "./config.js";
 import { DEFAULT_SETTINGS } from "./models.js";
 import { loadFaceEngine } from "./model-loader.js";
-import { registerServiceWorker } from "./pwa.js";
+import { registerServiceWorker, warmOfflineCache } from "./pwa.js";
 import { BookRepository, CourseRepository, SettingsRepository } from "./storage.js";
 import { UserRepository } from "./auth.js";
 import { makeLogo } from "./ui/branding.js";
@@ -73,17 +73,18 @@ async function main() {
   const app = document.getElementById("app");
   splash.root.hidden = true;
   app.hidden = false;
+  warmOfflineCache();
   let warnings = context.warnings;
   for (;;) {
-    const saved = sessionStorage.getItem("af_user"); // viene de volver desde el Excel
+    const saved = localStorage.getItem("af_user"); // la sesión sigue abierta aunque se cierre la ventana; solo «Cerrar sesión» la termina
     const user = (saved && context.state.users.get(saved)) || await runLogin(app, context.state.users);
-    sessionStorage.setItem("af_user", user.cedula);
+    localStorage.setItem("af_user", user.cedula);
     context.state.signIn(user);
     await new MainWindow(app, context.state, warnings).run();
     warnings = [];
-    sessionStorage.removeItem("af_user");
-    sessionStorage.removeItem("af_tab");
-    sessionStorage.removeItem("af_course");
+    localStorage.removeItem("af_user");
+    localStorage.removeItem("af_tab");
+    localStorage.removeItem("af_course");
     context.state.clearSubscribers();
     context.state.signOut();
   }

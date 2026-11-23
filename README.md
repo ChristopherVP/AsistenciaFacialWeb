@@ -77,12 +77,12 @@ The user interface is in **Spanish**. After the first visit the app works **with
 - Camera chooser with live preview and a clear “in use” badge; virtual cameras (OBS and similar) are ignored.
 - **Light (day) and dark (night) themes**, switchable from a Day/Night button in the header. Message boxes and their button rows follow the theme too (no white patches in night mode).
 - **Device permissions** card with the live status of the camera, a button to request it and a guide for **PC, Android and iPhone/iPad** on how to turn the camera on and give it permission (the ⋮ window menu does not exist on phones). The guide for your device opens automatically.
-- **Scheduled-list reminder** card (choose 1, 2 or 3 minutes) and an **Install application** button.
+- **Scheduled-list reminder** card (choose 1, 2 or 3 minutes) and an **Install application** button that is always available while the app is not installed (in *Ajustes* and on the login screen): it installs with one tap when the browser allows it and otherwise shows the steps for PC, Android or iPhone/iPad.
 - *My account* panel to enable or disable one-click login.
 
 **Other**
 - **Diagnostics page** (`diagnostico.html`) to check the models, the camera, the detection score and the similarity between two captures.
-- **Installable PWA**, usable offline, with tabs kept in sync through a `BroadcastChannel`.
+- **Installable PWA** (Android, iPhone/iPad and computers), usable offline, with tabs kept in sync through a `BroadcastChannel`. **The session stays open when the window is closed** (red ✕); only **Cerrar sesión** ends it.
 - Automated tests for the domain logic, the sheet model, the reminders, the PWA files and the full UI flow.
 
 ---
@@ -199,7 +199,8 @@ After publishing:
 - Every computer can open the link and **install** the app (install icon in the address bar, or *Ajustes → Instalar aplicación*) to use it offline.
 - **Each browser and each domain keeps its own data** (IndexedDB). Data created on `localhost` does not appear on the published site.
 - WebAssembly runs single-threaded (`numThreads = 1`) because GitHub Pages cannot send the cross-origin isolation headers that multi-threading requires.
-- When you update the app, increase `VERSION` in `sw.js` so installed copies download the new files.
+- When you update the app, increase `VERSION` in `sw.js` so installed copies download the new files. The models and the WebAssembly runtime live in a separate cache (`asistencia-facial-pesados-v1`) that is **kept between versions**, so an update only downloads the small code files. The `_headers` file tells Netlify to let browsers keep `modelos/` and `vendor/ort/` for a year.
+- **First visit size:** a new user downloads about 50 MB once (the SFace model ~37 MB and the WebAssembly runtime ~11 MB). Speed depends on that person's connection, not on how many people use the app; the number of *new* users only matters for the monthly transfer allowance of your hosting plan.
 
 ---
 
@@ -345,7 +346,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | **Biometric data** | Only **face embeddings** are stored (numeric vectors), never photos or video. They never leave the browser. |
 | **Consent** | Registering a face requires accepting a consent notice. |
 | **Local data** | All data lives in the browser's IndexedDB; whoever has access to that browser profile has access to the data. |
-| **Leave guard** | Inside an account, the window's red ✕ shows the browser's own «leave the app?» confirmation. Only the browser can draw it, so the app cannot change its text or look, nor replace it with its own dialog. The moment ✕ is pressed the app starts saving a half-edited sheet cell, and if you confirm it also finishes and saves a running list. For a confirmation in the app's own style use **Cerrar sesión**. At the login screen nothing is asked. |
+| **Closing the window** | The red ✕ closes the app directly, without any confirmation. At that moment the app finishes what is pending: a running list is finished and saved and a half-edited sheet cell is committed (everything else is already saved). **Cerrar sesión** keeps its own confirmation dialog. |
 | **Excel formulas** | The evaluator checks the expression against a whitelist of characters and functions before evaluating it. |
 | **No secrets in code** | There are no keys, tokens or passwords in the source; there is no backend. |
 
@@ -391,7 +392,8 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | `theme.js` | Light / dark theme, stored in the browser and synchronized between windows. |
 | `permissions.js` | Device detection (PC, Android, iPhone/iPad) and the step-by-step texts for the camera permission and for installing the app. |
 | `backup.js` | `downloadBlob` (used by every download) and the JSON backup export / import functions (see [Known Limitations](#known-limitations)). |
-| `pwa.js` | Service worker registration and the install prompt. |
+| `pwa.js` | Service worker registration, the install prompt and the request that stores the heavy files for offline use. |
+| `ui/install-help.js` | The **Instalar aplicación** action: native install prompt when available, otherwise the steps for the device. |
 | `diagnostico.js` | Logic of the diagnostics page. |
 | `ui/` | `main-window`, `login`, tabs (`attendance-tab`, `courses-tab`, `excel-tab`, `settings-tab`), `dialogs`, `reminders`, `save-prompt`, `messagebox`, `widgets`, `branding`, `state` and a tiny `h()` DOM helper (`dom.js`). |
 
@@ -432,7 +434,7 @@ Each course has one *book*:
 | `localStorage` | `af_theme` | Chosen theme (light or dark). |
 | `localStorage` | `af_reminders` | Reminders already sent today (shared between windows). |
 | `localStorage` | `af_reminder_lead` | Chosen minutes (1, 2 or 3) for the voice and vibration reminder. |
-| `sessionStorage` | `af_user`, `af_tab`, `af_course` | Keep the session, the tab and the course when the page reloads; cleared on logout. |
+| `localStorage` | `af_user`, `af_tab`, `af_course` | Keep the open session, the tab and the course between visits, even after closing the window; removed by **Cerrar sesión**. On a shared computer always use **Cerrar sesión**. |
 
 Other details:
 - The browser is asked for **persistent storage** so it does not discard the data when disk space is low.
@@ -446,9 +448,9 @@ Other details:
 
 ## Offline Mode and Service Worker
 
-`sw.js` (cache name `asistencia-facial-v11`):
+`sw.js` (code cache `asistencia-facial-v13`, heavy-files cache `asistencia-facial-pesados-v1`):
 
-- **Install:** pre-caches the application shell (HTML, CSS, every JS module, icons and manifest) and, without blocking the installation, the heavy files (the two ONNX models, the onnxruntime-web files and `xlsx.bundle.js`).
+- **Install:** pre-caches only the small application shell (HTML, CSS, every JS module, icons and manifest), so installing and updating are quick. The heavy files (the two ONNX models, the onnxruntime-web files and `xlsx.bundle.js`) are stored in their own cache once the app has loaded them (the page asks the worker with a `WARM_HEAVY` message, which reuses the browser's own copy instead of downloading again), and older caches' copies are adopted when the worker updates.
 - **Application code:** *network-first* (`cache: "no-cache"`), so you always get the latest version when online and the cached copy when offline.
 - **Models, WebAssembly, `vendor/` and icons:** *cache-first*.
 - **Navigation offline:** falls back to the cached `index.html`.
@@ -492,6 +494,7 @@ AsistenciaFacialWeb/
 ├── sw.js                       # Service worker (offline cache, VERSION)
 ├── package.json                # Test and local-server scripts (dev dependencies only)
 ├── .nojekyll                   # GitHub Pages: serve files as they are
+├── _headers                    # Netlify: browsers keep the models and the runtime for a year
 ├── css/
 │   └── estilos.css             # Styles, light and dark themes
 ├── js/
@@ -535,6 +538,7 @@ npm test
 | `excel-tab.test.js` | The Excel tab: files per course, opening a sheet, multiple selection, hiding and deleting. |
 | `reminders.test.js` | Vibration and voice at the chosen minutes (1 by default), no sudden alerts for schedules created inside the window, duplicate, on/off and completed rules. |
 | `pwa.test.js` | Service worker file list, every JS module cached, installable manifest. |
+| `instalacion.test.js` | Fast service-worker install with a separate heavy-files cache, Netlify cache headers, iPhone/Android install tags and steps, the always-available install button and the persistent session. |
 | `theme.test.js` | Light / dark theme persistence. |
 | `permisos-horario.test.js` | Device detection and permission texts, the 40-minute slot limit (and legacy courses) and the schedule dialog. |
 | `horarios.test.js` | Per-slot on/off, activate / deactivate all, editing a slot, completed (locked) schedules, reading courses saved before per-slot switches and the edit dialog. |
@@ -558,7 +562,7 @@ Manual check:
 - **Typed errors:** each layer raises a specific error that the UI turns into a friendly message.
 - **Local-first:** IndexedDB is the single source of truth; the `.xlsx` is generated from it on demand.
 - **Pure logic separated from the UI** (`sheet-model.js`, `excel-import.js`, `scheduler.js`, `attendance.js`, `validators.js`) so it can be tested in Node without a browser.
-- **Offline by design:** `sw.js` pre-caches the code and caches the heavy files (models, WASM) without blocking installation.
+- **Offline by design:** `sw.js` pre-caches the code and keeps the heavy files (models, WASM) in a separate cache that survives updates, without blocking installation.
 - **Safe formulas:** the sheet evaluator whitelists tokens before evaluating an expression.
 - **Live sync:** an `AppState` subscription and a `BroadcastChannel` keep tabs and windows consistent.
 - **Lazy loading:** SheetJS is only loaded the first time an Excel file is imported, edited or downloaded.
@@ -588,6 +592,8 @@ This is an **educational project**, not a certified attendance or proctoring sys
 
 | Problem | Solution |
 |---------|----------|
+| I cannot install the app on iPhone or Android | Use **📲 Instalar aplicación** on the login screen or in *Ajustes*: when the browser does not allow one-tap install it shows the steps. iPhone/iPad: Safari (or another browser, iOS 16.4+) → Share → *Agregar a pantalla de inicio*. Android: open the page in Chrome itself (not inside WhatsApp or another app) → ⋮ → *Instalar aplicación*. |
+| The first visit is slow | The first visit downloads about 50 MB once (models and runtime). Updates no longer download them again. Use a good connection for the first load; afterwards the app opens from the device. |
 | `"py" no se reconoce como un comando` | Use `python -m http.server 8000`, `npm run servir`, or install Python and tick **Add python.exe to PATH**. |
 | The page does not load or the camera does not start | Open it through `http://localhost:8000` (or HTTPS), never as `file://`. |
 | The camera asks for no permission / shows no cameras | Open *Ajustes → Permisos del dispositivo*, press **📷 Permitir cámara** and, if it is blocked, follow the steps for your device (PC, Android or iPhone). Then press **🔄 Buscar cámaras**. |

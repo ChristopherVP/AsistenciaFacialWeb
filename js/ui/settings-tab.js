@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from "../models.js";
 import { Camera, detectCameras, displayName } from "../camera.js";
 import { AuthError, CameraError } from "../errors.js";
 import { installer } from "../pwa.js";
+import { canOfferInstall, installApp } from "./install-help.js";
 import { PLATFORMS, detectPlatform, helpSteps } from "../permissions.js";
 import { CameraPreviewDialog } from "./dialogs.js";
 import { h } from "./dom.js";
@@ -166,10 +167,10 @@ export class SettingsTab {
   _buildInstall() {
     const box = card([
       h("h2", { class: "card-title" }, "📲  Instalar aplicación"),
-      h("p", { class: "hint", style: "margin:4px 0 10px" }, "Instale la aplicación en este equipo para abrirla como un programa y usarla sin internet."),
-      h("button", { type: "button", class: "btn", onClick: () => installer.prompt() }, "Instalar"),
+      h("p", { class: "hint", style: "margin:4px 0 10px" }, "Instale la aplicación en este dispositivo (computador, Android o iPhone) para abrirla como un programa y usarla sin internet. Si el navegador no permite instalar con un toque, el botón le muestra los pasos para su dispositivo."),
+      h("button", { type: "button", class: "btn btn-primary", onClick: () => installApp() }, "📲  Instalar aplicación"),
     ], { padding: 18 });
-    const update = () => { box.hidden = !installer.canInstall; };
+    const update = () => { box.hidden = !canOfferInstall(); };
     installer.onChange(update);
     update();
     return box;

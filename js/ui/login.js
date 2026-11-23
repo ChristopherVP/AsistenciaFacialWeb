@@ -1,3 +1,4 @@
+import { canOfferInstall, installApp } from "./install-help.js";
 import { APP_TITLE, SECURITY_QUESTIONS } from "../config.js";
 import { AppError } from "../errors.js";
 import {
@@ -110,7 +111,8 @@ class LoginScreen {
     this._button(body, "Ingresar", "btn-primary", () => this._submit());
     body.append(h("div", { class: "links" },
       this._link("¿Olvidaste tu contraseña?", () => this._showRecover(userInput.value)),
-      this._link("¿No tienes cuenta? Regístrate aquí", () => this._showRegister())));
+      this._link("¿No tienes cuenta? Regístrate aquí", () => this._showRegister()),
+      canOfferInstall() ? this._link("📲 Instalar aplicación", () => installApp()) : null));
     (username ? passwordInput : userInput).focus();
   }
 

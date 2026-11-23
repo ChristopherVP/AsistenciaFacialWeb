@@ -42,11 +42,13 @@ const STEPS = Object.freeze({
       "En Edge: menú ⋯ → Aplicaciones → Instalar este sitio como una aplicación.",
     ]),
     android: Object.freeze([
-      "En Chrome: menú ⋮ → Instalar aplicación (o Agregar a la pantalla principal).",
+      "En Chrome: menú ⋮ (arriba a la derecha) → «Instalar aplicación» o «Agregar a la pantalla principal».",
+      "Si no aparece la opción: abra la página directamente en Chrome (no dentro de WhatsApp, Instagram u otra aplicación) y recárguela.",
       "La aplicación queda con su propio icono y sigue funcionando sin internet.",
     ]),
     ios: Object.freeze([
-      "En Safari: botón Compartir → Agregar a pantalla de inicio.",
+      "En Safari: toque el botón Compartir (el cuadro con una flecha hacia arriba) → «Agregar a pantalla de inicio» → Agregar.",
+      "Si usa Chrome u otro navegador en iPhone o iPad: menú Compartir → «Agregar a pantalla de inicio» (iOS 16.4 o superior).",
       "Abra siempre la aplicación desde ese icono.",
     ]),
   }),

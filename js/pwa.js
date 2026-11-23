@@ -25,6 +25,16 @@ window.addEventListener("appinstalled", () => {
   listeners.forEach((callback) => callback());
 });
 
+export async function warmOfflineCache() {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    registration.active?.postMessage({ type: "WARM_HEAVY" });
+  } catch (error) {
+    console.warn("No se pudo preparar el uso sin internet:", error);
+  }
+}
+
 export async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return null;
   try {

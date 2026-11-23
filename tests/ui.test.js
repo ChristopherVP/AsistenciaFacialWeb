@@ -14,6 +14,7 @@ for (const name of ["window", "document", "Node", "HTMLElement", "Event", "Keybo
 }
 Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true });
 Object.defineProperty(globalThis, "sessionStorage", { value: window.sessionStorage, configurable: true });
+Object.defineProperty(globalThis, "localStorage", { value: window.localStorage, configurable: true });
 window.HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute("open", ""); };
 window.HTMLDialogElement.prototype.close = function close() { this.removeAttribute("open"); };
 window.HTMLElement.prototype.scrollIntoView = () => {};
@@ -178,10 +179,10 @@ test("flujo completo de la interfaz: cuenta → cursos → horario → lista →
     assert.ok(byText("h2", "Cámara del sistema"));
   });
 
-  await t.test("al salir con la X dentro de la cuenta pide confirmación y guarda lo pendiente", async () => {
+  await t.test("al pulsar la X dentro de la cuenta cierra directo (sin aviso) y guarda lo pendiente", async () => {
     const inside = new window.Event("beforeunload", { cancelable: true });
     window.dispatchEvent(inside);
-    assert.equal(inside.defaultPrevented, true);
+    assert.equal(inside.defaultPrevented, false);
     window.dispatchEvent(new window.Event("pagehide"));
     await sleep(20);
   });

@@ -35,13 +35,7 @@ export class MainWindow {
     this._tab = -1; this._before = 1;
     this._courses.onViewExcel = (id) => { this._excel.open(id); this._selectTab(EXCEL_TAB); };
     this._clock = h("span", { class: "header-clock", "aria-label": "Fecha y hora" });
-    // Dentro de una cuenta, la X siempre pide confirmación (el texto lo pone el navegador y no se puede cambiar);
-    // si se confirma la salida, lo pendiente se guarda igual (pagehide). En el login no se instala este aviso.
-    this._leaveGuard = (event) => {
-      this._excel.flush().catch(reportExitError);
-      event.preventDefault();
-      event.returnValue = "";
-    };
+    // La X de la ventana cierra directo, sin preguntar: lo pendiente se guarda solo (beforeunload y pagehide).
     this._exitSave = () => this._flushForExit();
     this._hiddenSave = () => { if (document.visibilityState === "hidden") this._excel.flush().catch(reportExitError); };
   }
@@ -52,7 +46,7 @@ export class MainWindow {
   }
 
   _removeExitHandlers() {
-    window.removeEventListener("beforeunload", this._leaveGuard);
+    window.removeEventListener("beforeunload", this._exitSave);
     window.removeEventListener("pagehide", this._exitSave);
     document.removeEventListener("visibilitychange", this._hiddenSave);
   }
@@ -62,7 +56,7 @@ export class MainWindow {
       this._resolve = resolve;
       document.title = APP_TITLE;
       this._root.replaceChildren(this._buildHeader(), this._buildNotebook());
-      window.addEventListener("beforeunload", this._leaveGuard);
+      window.addEventListener("beforeunload", this._exitSave);
       window.addEventListener("pagehide", this._exitSave);
       document.addEventListener("visibilitychange", this._hiddenSave);
       this._showWarnings();
@@ -111,7 +105,7 @@ export class MainWindow {
     const buttons = []; const panels = [];
     this._selectTab = (selected) => {
       if (selected !== this._tab) { if (this._tab !== EXCEL_TAB && this._tab >= 0) this._before = this._tab; this._tab = selected; }
-      try { sessionStorage.setItem("af_tab", String(selected)); } catch { /* sin almacenamiento de sesión */ }
+      try { localStorage.setItem("af_tab", String(selected)); } catch { /* sin almacenamiento */ }
       tabs.forEach((_, index) => {
         buttons[index].setAttribute("aria-selected", String(index === selected));
         buttons[index].tabIndex = index === selected ? 0 : -1;
@@ -131,7 +125,7 @@ export class MainWindow {
         } }, title));
       panels.push(h("section", { class: "tab-panel", role: "tabpanel", id: `${id}-panel`, "aria-labelledby": id }, content));
     });
-    const saved = Number(sessionStorage.getItem("af_tab"));
+    const saved = Number(localStorage.getItem("af_tab"));
     this._selectTab(saved >= 0 && saved < tabs.length ? saved : 0);
     return h("main", { class: "notebook" }, h("div", { class: "tabs", role: "tablist" }, buttons), panels);
   }
