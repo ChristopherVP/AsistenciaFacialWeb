@@ -110,7 +110,7 @@ class LoginScreen {
     this._submit = () => this._login(userInput.value, passwordInput.value);
     this._button(body, "Ingresar", "btn-primary", () => this._submit());
     body.append(h("div", { class: "links" },
-      this._link("¿Olvidaste tu contraseña?", () => this._showRecover(userInput.value)),
+      this._link("¿Olvidaste tu contraseña?", () => this._showRecover()),
       this._link("¿No tienes cuenta? Regístrate aquí", () => this._showRegister()),
       canOfferInstall() ? this._link("📲 Instalar aplicación", () => installApp()) : null));
     (username ? passwordInput : userInput).focus();
@@ -198,34 +198,51 @@ class LoginScreen {
 
   /* ---------- recuperar contraseña ---------- */
 
-  _showRecover(username = "") {
-    const body = this._reset("Recuperar contraseña", "Escribe tu usuario para ver tu pregunta de seguridad.");
-    const input = this._field(body, "Usuario", { restrict: allowsUsernameInput, value: username });
+  _showRecover(cedula = "") {
+    const body = this._reset("Recuperar contraseña", "Escribe tu número de cédula para buscar tu cuenta.");
+    const input = this._field(body, "Cédula", { restrict: allowsCedulaInput, value: cedula });
     body.append(this._error);
     this._submit = () => {
       try {
-        const question = this._users.securityQuestion(input.value);
-        this._showResetForm(input.value.trim().toLowerCase(), question);
+        const { question, username } = this._users.recoveryQuestion(input.value);
+        this._showRecoverQuestion(input.value.trim(), username, question);
       } catch (error) {
         if (!(error instanceof AppError)) throw error;
         this._fail(error);
       }
     };
-    this._button(body, "Continuar", "btn-primary", () => this._submit());
+    this._button(body, "Buscar cuenta", "btn-primary", () => this._submit());
     body.append(h("div", { class: "links" }, this._link("← Volver a iniciar sesión", () => this._showLogin())));
     input.focus();
   }
 
-  _showResetForm(username, question) {
-    const body = this._reset("Nueva contraseña", `Usuario @${username}`);
+  _showRecoverQuestion(cedula, username, question) {
+    const body = this._reset("Pregunta de seguridad", `Cuenta encontrada: @${username}. Responde para continuar.`);
     const answer = this._field(body, question);
+    body.append(this._error);
+    this._submit = async () => {
+      try {
+        await this._users.verifyRecoveryAnswer(cedula, answer.value);
+        this._showResetForm(cedula, username, answer.value);
+      } catch (error) {
+        if (!(error instanceof AppError)) throw error;
+        this._fail(error);
+      }
+    };
+    this._button(body, "Verificar respuesta", "btn-primary", () => this._submit());
+    body.append(h("div", { class: "links" }, this._link("← Buscar otra cédula", () => this._showRecover(cedula))));
+    answer.focus();
+  }
+
+  _showResetForm(cedula, username, verifiedAnswer) {
+    const body = this._reset("Nueva contraseña", `Datos correctos. Elige la nueva contraseña de @${username}.`);
     const password = this._field(body, "Nueva contraseña (mínimo 8 caracteres)", { secret: true });
     const confirm = this._field(body, "Repetir nueva contraseña", { secret: true });
     this._passwordToggle(body);
     body.append(this._error);
     this._submit = async () => {
       try {
-        const user = await this._users.recoverPassword(username, answer.value, password.value, confirm.value);
+        const user = await this._users.recoverPasswordByCedula(cedula, verifiedAnswer, password.value, confirm.value);
         this._showLogin(user.username, "✔ Contraseña actualizada. Inicia sesión.");
       } catch (error) {
         if (!(error instanceof AppError)) throw error;
@@ -234,6 +251,6 @@ class LoginScreen {
     };
     this._button(body, "Cambiar contraseña", "btn-success", () => this._submit());
     body.append(h("div", { class: "links" }, this._link("← Volver a iniciar sesión", () => this._showLogin())));
-    answer.focus();
+    password.focus();
   }
 }

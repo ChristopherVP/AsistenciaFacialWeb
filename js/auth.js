@@ -177,23 +177,43 @@ export class UserRepository {
     return user.question;
   }
 
-  async recoverPassword(username, answer, newPassword, confirmation) {
-    const key = `recover:${username.trim().toLowerCase()}`;
+  findByCedula(cedula) {
+    const user = this._users.get(validateCedula(cedula));
+    if (!user) throw new AuthError("No se encontró ninguna cuenta con esa cédula.");
+    return user;
+  }
+
+  recoveryQuestion(cedula) {
+    const user = this.findByCedula(cedula);
+    return { question: user.question, username: user.username };
+  }
+
+  async verifyRecoveryAnswer(cedula, answer) {
+    const user = this.findByCedula(cedula);
+    const key = `recover:${user.cedula}`;
     this._throttle.check(key);
-    const user = this.findByUsername(username);
-    if (user === null) throw new AuthError("No existe ese usuario.");
-    const normalized = normalizeAnswer(answer);
-    if (!(await matches(normalized, user.answer_salt, user.answer_hash, user.iterations))) {
+    if (!(await matches(normalizeAnswer(answer), user.answer_salt, user.answer_hash, user.iterations))) {
       this._throttle.registerFailure(key);
       throw new AuthError("La respuesta de seguridad es incorrecta.");
     }
+    return user;
+  }
+
+  async recoverPasswordByCedula(cedula, answer, newPassword, confirmation) {
+    const user = await this.verifyRecoveryAnswer(cedula, answer);
     validatePassword(newPassword, confirmation);
     const secret = await protect(newPassword, user.iterations);
     const updated = Object.freeze({ ...user, password_salt: secret.salt, password_hash: secret.hash });
     await this._persist(updated);
-    this._throttle.reset(key);
+    this._throttle.reset(`recover:${user.cedula}`);
     this._throttle.reset(`login:${user.username}`);
     return updated;
+  }
+
+  async recoverPassword(username, answer, newPassword, confirmation) {
+    const user = this.findByUsername(username);
+    if (user === null) throw new AuthError("No existe ese usuario.");
+    return this.recoverPasswordByCedula(user.cedula, answer, newPassword, confirmation);
   }
 
   async setRemembered(cedula, remembered) {

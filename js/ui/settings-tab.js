@@ -1,4 +1,4 @@
-import { APP_TITLE, COLORS, NOTICE_MS } from "../config.js";
+import { APP_TITLE, APP_VERSION, COLORS, NOTICE_MS } from "../config.js";
 import { DEFAULT_SETTINGS } from "../models.js";
 import { Camera, detectCameras, displayName } from "../camera.js";
 import { AuthError, CameraError } from "../errors.js";
@@ -54,7 +54,8 @@ export class SettingsTab {
       this._buildAccount(),
       this._buildPermissions(),
       this._buildReminders(),
-      this._buildInstall());
+      this._buildInstall(),
+      h("p", { class: "hint", style: "text-align:center;margin:6px 0" }, `Versión de la aplicación: ${APP_VERSION}`));
   }
 
   _buildAccount() {

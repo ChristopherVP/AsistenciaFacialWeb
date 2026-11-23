@@ -46,7 +46,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 
 **Accounts**
 - Registration with full name, validated Ecuadorian *cédula*, username (with a live “available / already taken” check), password with confirmation and a **security question**.
-- Login with username and password, show/hide password, **one-click login** for remembered users on a trusted computer, and **password recovery** through the security question.
+- Login with username and password, show/hide password, **one-click login** for remembered users on a trusted computer, and **password recovery in three steps**: (1) enter the account's *cédula*, (2) only if the account is found, answer its security question, (3) only if both data are correct, choose the new password.
 - Temporary lock (30 s) after 5 failed attempts, for both login and recovery.
 
 **Courses and students**
@@ -82,6 +82,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 
 **Other**
 - **Diagnostics page** (`diagnostico.html`) to check the models, the camera, the detection score and the similarity between two captures.
+- The version number is shown at the bottom of *Ajustes* (it matches the service-worker cache version), so you can check which version is running after publishing.
 - **Installable PWA** (Android, iPhone/iPad and computers), usable offline, with tabs kept in sync through a `BroadcastChannel`. **The session stays open when the window is closed** (red ✕); only **Cerrar sesión** ends it.
 - Automated tests for the domain logic, the sheet model, the reminders, the PWA files and the full UI flow.
 
@@ -94,7 +95,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 | ID | Requirement |
 |----|-------------|
 | FR-01 | Register users with full name, valid cédula, username, password and security question; reject duplicated cédulas and usernames. |
-| FR-02 | Authenticate users, allow logout, remember a user for one-click login and recover the password with the security question. |
+| FR-02 | Authenticate users, allow logout, remember a user for one-click login and recover the password by *cédula*: the account is searched first, then its security question is asked, and the new password can only be set after the answer is verified. |
 | FR-03 | Create, rename and delete courses with unique (case-insensitive) names. |
 | FR-04 | Register students with cédula, name and a guided face scan of 5 frontal samples; reject duplicated cédulas and faces already registered under another cédula in any course. |
 | FR-05 | Recognize students through the camera and mark them present after consecutive confirmations. |

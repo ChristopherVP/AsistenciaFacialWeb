@@ -55,3 +55,8 @@ test("la sesión sigue abierta al cerrar la ventana: se guarda en localStorage y
   assert.match(main, /localStorage\.removeItem\("af_user"\)/);
   assert.doesNotMatch(main, /sessionStorage/);
 });
+
+test("la versión que se muestra en Ajustes coincide con la del service worker", async () => {
+  const { APP_VERSION } = await import("../js/config.js");
+  assert.match(read("sw.js"), new RegExp(`const VERSION = "asistencia-facial-v${APP_VERSION}"`));
+});

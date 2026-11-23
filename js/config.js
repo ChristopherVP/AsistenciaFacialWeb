@@ -1,4 +1,5 @@
 export const APP_TITLE = "Asistencia Facial";
+export const APP_VERSION = "13";
 export const APP_SUBTITLE = "Control de asistencia con reconocimiento facial";
 
 export const DETECTOR_FILE = "face_detection_yunet_2023mar.onnx";
