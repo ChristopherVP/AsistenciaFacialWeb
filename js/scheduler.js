@@ -2,13 +2,13 @@ import { DAY_LABELS } from "./config.js";
 import { formatDayMonth, isoDate, parseTime, slotContains, weekday } from "./models.js";
 
 export const activeSlot = (course, now) =>
-  course.slots.find((slot) => slot.enabled !== false && !slot.completed_on && slotContains(slot, now)) ?? null;
+  course.slots.find((slot) => slot.enabled !== false && !slot.completed_on && slot.ran_on !== isoDate(now) && slotContains(slot, now)) ?? null;
 
 export function dueCourses(courses, now) {
   const today = isoDate(now);
   const due = [];
   for (const course of courses) {
-    if (!course.schedule_enabled || course.last_auto_date === today) continue;
+    if (!course.schedule_enabled) continue;
     const slot = activeSlot(course, now);
     if (slot !== null) due.push({ course, slot });
   }
@@ -23,9 +23,8 @@ export function nextRun(course, now) {
   let best = null;
   for (let offset = 0; offset < 8; offset += 1) {
     const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-    if (offset === 0 && course.last_auto_date === isoDate(day)) continue;
     for (const slot of course.slots) {
-      if (slot.enabled === false || slot.completed_on || !slot.days.includes(weekday(day))) continue;
+      if (slot.enabled === false || slot.completed_on || slot.ran_on === isoDate(day) || !slot.days.includes(weekday(day))) continue;
       const start = atMinutes(day, parseTime(slot.start));
       const end = atMinutes(day, parseTime(slot.end));
       if (end <= now) continue;
@@ -35,12 +34,12 @@ export function nextRun(course, now) {
   return best;
 }
 
-export function slotNextStart(slot, now, skipToday = false) {
+export function slotNextStart(slot, now) {
   const startMinutes = parseTime(slot.start);
   const endMinutes = parseTime(slot.end);
-  for (let offset = skipToday ? 1 : 0; offset <= 7; offset += 1) {
+  for (let offset = 0; offset <= 7; offset += 1) {
     const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-    if (!slot.days.includes(weekday(day))) continue;
+    if (!slot.days.includes(weekday(day)) || slot.ran_on === isoDate(day)) continue;
     const start = atMinutes(day, startMinutes);
     const end = atMinutes(day, endMinutes);
     if (now >= start && now < end) return { start, running: true };

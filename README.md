@@ -54,7 +54,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 - **Student registration with face scan**: guided capture of 5 frontal samples with an on-screen progress bar and **Spanish voice instructions** (Web Speech API), a mandatory consent checkbox and automatic **duplicate-face detection** against every student registered in any course under a different cédula.
 - Students are always listed **alphabetically by surname (A–Z)**.
 - **Pending students are left out of the attendance list:** students who have not finished their face registration do not appear in *Tomar lista*, are not counted and are not marked absent in the Excel until they finish.
-- **Live countdown** in each schedule row (*Falta para empezar*: days, hours, minutes and seconds).
+- **Live countdown** in each schedule row (*Falta para empezar*: days, hours, minutes and seconds). It counts down to that schedule's next start, today if it is still ahead, so two schedules on the same day show their own minutes.
 - **Completed schedules:** once an automatic list has been taken and saved, its schedule is marked **✔ Cumplido** with the date, can no longer be edited, switched or reused, and can only be removed.
 - **Several schedules per course**, each one with its own **Activa / Apagada** button, plus **Activar todos**, **Desactivar todos** and **Modificar horario** (edit days and times of an existing schedule without deleting it).
 - Students added from the Excel tab or imported from an Excel file stay **pending** (`⏳ Falta rostro`) until they finish their face scan with **✔ Terminar registro**.
@@ -75,7 +75,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 
 **Settings and appearance**
 - Camera chooser with live preview and a clear “in use” badge; virtual cameras (OBS and similar) are ignored.
-- **Light (day) and dark (night) themes**, switchable from a Day/Night button in the header.
+- **Light (day) and dark (night) themes**, switchable from a Day/Night button in the header. Message boxes and their button rows follow the theme too (no white patches in night mode).
 - **Device permissions** card with the live status of the camera, a button to request it and a guide for **PC, Android and iPhone/iPad** on how to turn the camera on and give it permission (the ⋮ window menu does not exist on phones). The guide for your device opens automatically.
 - **Scheduled-list reminder** card (choose 1, 2 or 3 minutes) and an **Install application** button.
 - *My account* panel to enable or disable one-click login.
@@ -98,7 +98,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 | FR-03 | Create, rename and delete courses with unique (case-insensitive) names. |
 | FR-04 | Register students with cédula, name and a guided face scan of 5 frontal samples; reject duplicated cédulas and faces already registered under another cédula in any course. |
 | FR-05 | Recognize students through the camera and mark them present after consecutive confirmations. |
-| FR-06 | Define weekly time slots per course (each one **at most 40 minutes long**), edit them, turn each one on or off individually (or all at once) and run **automatic attendance lists** inside the active ones, once per day. |
+| FR-06 | Define weekly time slots per course (each one **at most 40 minutes long**), edit them, turn each one on or off individually (or all at once) and run **automatic attendance lists** inside the active ones, once per schedule per day. |
 | FR-07 | Warn before a scheduled list while the app is open: the device vibrates (when it can) and a voice says the course will take attendance soon; 1 minute before by default, configurable to 2 or 3 in *Ajustes*. |
 | FR-08 | Keep one attendance book per course with one column per list and a percentage column. |
 | FR-09 | Show the book in an **Excel-style editor** with editable cells, extra columns, formulas, row and column insertion and deletion, undo / redo and clipboard support. |
@@ -305,7 +305,7 @@ The `.xlsx` is built with a local copy of SheetJS (`xlsx-js-style`): blue bold h
 - **Why there are no system notifications:** a web page that is closed cannot notify, vibrate or take attendance (that would need a push server). The reminders therefore only work while the app is open.
 - **No sudden alerts:** each reminder is only given if the app had already seen the schedule *before* that reminder's window began. A schedule created, turned on or opened inside the window does not fire the notification at once; only the reminder that can still arrive on time is given (for example, a schedule created 3 minutes ahead gets only the voice, at 1 minute before).
 - A minimized or hidden window may run its clock more slowly (browser power saving), so a reminder can arrive up to about a minute late.
-- Each reminder is given once per day, even with several windows open.
+- Each schedule starts its list at most once per day: a list taken in one schedule does not block the other schedules of the same course on that day. Each reminder is given once per day, even with several windows open.
 
 ---
 
@@ -345,7 +345,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | **Biometric data** | Only **face embeddings** are stored (numeric vectors), never photos or video. They never leave the browser. |
 | **Consent** | Registering a face requires accepting a consent notice. |
 | **Local data** | All data lives in the browser's IndexedDB; whoever has access to that browser profile has access to the data. |
-| **Leave guard** | Inside an account, the ✕ button always asks the browser's own «leave the app?» confirmation (its text cannot be customized); if you confirm, pending work is saved anyway. At the login screen the window closes directly. |
+| **Leave guard** | Inside an account, the window's ✕ button shows the browser's own «leave the app?» confirmation (the browser decides its text and look; the app cannot change them). If you confirm, pending work is saved anyway. For a confirmation in the app's own style use the header buttons **Cerrar sesión** and **⏻ Salir**: both ask «Everything you did is already saved», finish a running list, commit a half-edited sheet cell and only then leave. At the login screen nothing is asked. |
 | **Excel formulas** | The evaluator checks the expression against a whitelist of characters and functions before evaluating it. |
 | **No secrets in code** | There are no keys, tokens or passwords in the source; there is no backend. |
 
@@ -436,7 +436,7 @@ Each course has one *book*:
 
 Other details:
 - The browser is asked for **persistent storage** so it does not discard the data when disk space is low.
-- **Saving on exit:** when the window is closed (the ✕ button) or reloaded, the app finishes what is pending the same way *Cerrar sesión* does: a running list is finished and saved, and a half-edited sheet cell is committed. Browsers do not guarantee that asynchronous work completes while a page unloads, so if a list is running and you want to be certain, choose *Cancelar* in the confirmation and use *Finalizar y guardar*.
+- **Saving on exit:** when the window is closed (the ✕ button) or reloaded, the app finishes what is pending the same way *Cerrar sesión* does: a running list is finished and saved, and a half-edited sheet cell is committed. Browsers do not guarantee that asynchronous work completes while a page unloads, so if a list is running and you want to be certain, choose *Cancelar* in the confirmation and use *Finalizar y guardar*. The **⏻ Salir** button does the same saving with the app's own dialog and then closes the window (installed app) or tells you it is safe to close the tab.
 - Tabs and windows of the app stay in sync through a `BroadcastChannel` (`af-courses`) and an internal subscription mechanism: changes made in the Excel tab appear immediately in *Cursos*, and lists taken appear in the sheet.
 - **Deleting a course also deletes its stored attendance**: download the Excel first if you need it.
 

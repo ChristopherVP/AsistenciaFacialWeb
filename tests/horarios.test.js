@@ -111,6 +111,25 @@ test("horarios: cuánto falta para empezar (días, horas, minutos y segundos)", 
   assert.equal(scheduler.formatRemaining(2 * 86400_000 + 3 * 3600_000 + 4 * 60_000 + 5_000), "2 d 3 h 4 min 5 s");
   assert.equal(scheduler.formatRemaining(75_000), "1 min 15 s");
   assert.equal(scheduler.slotNextStart(slot, new Date(2026, 10, 23, 9, 10)).running, true);
-  const skipped = scheduler.slotNextStart(slot, new Date(2026, 10, 23, 8, 0), true);
-  assert.equal(skipped.start.getDate(), 25);
+  const ranToday = models.createSlot([0, 2], "09:00", "09:30", { ranOn: "2026-11-23" });
+  assert.equal(scheduler.slotNextStart(ranToday, new Date(2026, 10, 23, 8, 0)).start.getDate(), 25);
+});
+
+test("horarios: la lista de un horario no bloquea a los demás del mismo día; el contador marca el más cercano", () => {
+  const sunday = new Date(2026, 10, 22, 20, 49, 0);
+  let course = models.createCourse({ course_id: "c9", name: "Infra", last_auto_date: "2026-11-22" });
+  course = models.courseAddSlot(course, models.createSlot([6], "20:51", "21:01"));
+  course = models.courseAddSlot(course, models.createSlot([6], "20:55", "21:25"));
+  course = models.courseSetAllSlots(course, true);
+  const first = scheduler.slotNextStart(course.slots[0], sunday);
+  assert.equal(scheduler.formatRemaining(first.start - sunday), "2 min 0 s");
+  assert.equal(scheduler.nextRun(course, sunday).slot.start, "20:51");
+  assert.equal(scheduler.dueCourses([course], new Date(2026, 10, 22, 20, 52)).length, 1);
+  course = models.courseMarkSlotRan(course, course.slots[0], "2026-11-22");
+  assert.equal(course.slots[0].ran_on, "2026-11-22");
+  assert.equal(scheduler.dueCourses([course], new Date(2026, 10, 22, 20, 52)).length, 0);
+  assert.equal(scheduler.dueCourses([course], new Date(2026, 10, 22, 20, 56)).length, 1);
+  assert.equal(scheduler.nextRun(course, new Date(2026, 10, 22, 20, 52)).slot.start, "20:55");
+  const reloaded = models.courseFromDict(JSON.parse(JSON.stringify(course)));
+  assert.equal(reloaded.slots[0].ran_on, "2026-11-22");
 });

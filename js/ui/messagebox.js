@@ -13,7 +13,7 @@ function open({ title = APP_TITLE, text, kind, buttons }) {
       h("div", { class: "dialog-body" },
         h("span", { class: "msgbox-icon", "aria-hidden": "true" }, ICONS[kind]),
         h("p", { class: "msgbox-text" }, text)),
-      h("div", { class: "dialog-body dialog-actions", style: "padding-top:0;background:#fff" },
+      h("div", { class: "dialog-body dialog-actions" },
         buttons.map(({ label, value, style }) => h("button", { type: "button", class: `btn ${style}`, onClick: () => close(value) }, label))),
     );
     dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(buttons.at(-1).value); });

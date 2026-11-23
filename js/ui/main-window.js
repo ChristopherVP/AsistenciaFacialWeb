@@ -7,7 +7,7 @@ import { ExcelTab } from "./excel-tab.js";
 import { ScheduleReminders } from "./reminders.js";
 import { getThemePreference, resolveTheme, toggleTheme } from "../theme.js";
 import { h, wait } from "./dom.js";
-import { askYesNo, showWarning } from "./messagebox.js";
+import { askYesNo, showError, showInfo, showWarning } from "./messagebox.js";
 import { SavePrompt } from "./save-prompt.js";
 import { SettingsTab } from "./settings-tab.js";
 
@@ -94,6 +94,7 @@ export class MainWindow {
       user ? h("span", { class: "header-user" }, `👤  ${user.full_name}`) : null,
       this._buildThemeButton(),
       h("button", { type: "button", class: "btn-header", onClick: () => this._logout() }, "Cerrar sesión"),
+      h("button", { type: "button", class: "btn-header", title: "Guarda todo y cierra la aplicación", onClick: () => this._exitApp() }, "⏻  Salir"),
       this._clock);
   }
 
@@ -157,13 +158,37 @@ export class MainWindow {
     return true;
   }
 
-  async _logout() {
-    if (!(await askYesNo("¿Seguro que quieres cerrar sesión?", APP_TITLE))) return;
-    if (!(await this._confirmEndSession("cerrar sesión"))) return;
+  _stopWork() {
     for (const timer of this._timers) { clearInterval(timer); clearTimeout(timer); }
     this._removeExitHandlers();
     this._prompt?.dismiss();
+  }
+
+  async _logout() {
+    if (!(await askYesNo("¿Cerrar sesión?\n\nTodo lo que hizo ya está guardado.", APP_TITLE))) return;
+    if (!(await this._confirmEndSession("cerrar sesión"))) return;
+    await this._excel.flush();
+    this._stopWork();
     await wait(0);
+    this._resolve();
+  }
+
+  async _exitApp() {
+    const text = this._attendance.isRunning
+      ? "¿Salir de la aplicación?\n\nHay una lista en curso: se finalizará y se guardará antes de salir. Todo lo demás ya está guardado."
+      : "¿Salir de la aplicación?\n\nTodo lo que hizo ya está guardado.";
+    if (!(await askYesNo(text, APP_TITLE))) return;
+    try {
+      await this._excel.flush();
+      if (this._attendance.isRunning) await this._attendance.finishSession();
+    } catch (error) {
+      await showError(`No se pudo guardar todo antes de salir, por eso la aplicación sigue abierta.\n${error.message}`, APP_TITLE);
+      return;
+    }
+    this._stopWork();
+    window.close();
+    await wait(400);
+    await showInfo("Todo quedó guardado. Ya puede cerrar esta ventana o pestaña.", APP_TITLE);
     this._resolve();
   }
 }

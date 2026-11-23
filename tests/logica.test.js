@@ -52,7 +52,7 @@ test("scheduler: curso pendiente, próxima lista y mensaje", () => {
   assert.throws(() => courseAddSlot(course, createSlot([0], "07:00", "07:20")), /ya existe/);
   const monday = new Date(2026, 10, 16, 7, 5);
   assert.equal(dueCourses([course], monday).length, 1);
-  assert.equal(dueCourses([{ ...course, last_auto_date: "2026-11-16" }], monday).length, 0);
+  assert.equal(dueCourses([{ ...course, slots: course.slots.map((slot) => ({ ...slot, ran_on: "2026-11-16" })) }], monday).length, 0);
   assert.match(describeNext([course], monday), /^En horario ahora: Redes · hasta las 07:20$/);
   assert.match(describeNext([course], new Date(2026, 10, 17, 9, 0)), /^Próxima lista automática: Redes · Lun 23\/11 de 07:00 a 07:20$/);
   assert.equal(describeNext([], monday), "Sin listas automáticas programadas");

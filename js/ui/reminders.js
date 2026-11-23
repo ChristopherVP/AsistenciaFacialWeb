@@ -68,9 +68,9 @@ export class ScheduleReminders {
     const today = isoDate(now);
     const leadMs = this._lead() * 60_000;
     for (const course of this._state.repository.courses) {
-      if (!course.schedule_enabled || course.last_auto_date === today) continue;
+      if (!course.schedule_enabled) continue;
       for (const slot of course.slots) {
-        if (slot.enabled === false || slot.completed_on || !slot.days.includes(weekday(now))) continue;
+        if (slot.enabled === false || slot.completed_on || slot.ran_on === today || !slot.days.includes(weekday(now))) continue;
         const minutes = parseTime(slot.start);
         const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor(minutes / 60), minutes % 60);
         const wait = start - now;

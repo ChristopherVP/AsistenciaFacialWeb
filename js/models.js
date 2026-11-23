@@ -36,7 +36,7 @@ export function createStudent(studentId, name, embeddings) {
   });
 }
 
-export function createSlot(days, start, end, { legacy = false, enabled = true, completedOn = "" } = {}) {
+export function createSlot(days, start, end, { legacy = false, enabled = true, completedOn = "", ranOn = "" } = {}) {
   if (!days.length || days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
     throw new ValidationError("Selecciona al menos un día de la semana.");
   }
@@ -46,7 +46,7 @@ export function createSlot(days, start, end, { legacy = false, enabled = true, c
   if (!legacy && parseTime(end) - parseTime(start) > MAX_SLOT_MINUTES) {
     throw new ValidationError(`La lista programada no puede durar más de ${MAX_SLOT_MINUTES} minutos.`);
   }
-  return Object.freeze({ days: Object.freeze([...days]), start, end, enabled: Boolean(enabled) && !completedOn, completed_on: String(completedOn) });
+  return Object.freeze({ days: Object.freeze([...days]), start, end, enabled: Boolean(enabled) && !completedOn, completed_on: String(completedOn), ran_on: String(ranOn) });
 }
 
 export const slotEquals = (a, b) =>
@@ -126,6 +126,13 @@ export function courseToggleSlot(course, index) {
 export const courseSetAllSlots = (course, enabled) =>
   withSlots(course, course.slots.map((slot) => (isSlotCompleted(slot) ? slot : withEnabled(slot, enabled))));
 
+export function courseMarkSlotRan(course, slot, date) {
+  const index = course.slots.findIndex((item) => sameOpenSlot(item, slot));
+  const slots = frozenState(course);
+  if (index !== -1) slots[index] = Object.freeze({ ...slots[index], ran_on: String(date) });
+  return createCourse({ ...withSlots(course, slots), last_auto_date: String(date) });
+}
+
 export function courseCompleteSlot(course, slot, date) {
   const index = course.slots.findIndex((item) => sameOpenSlot(item, slot));
   if (index === -1) return course;
@@ -141,7 +148,7 @@ export function courseFromDict(raw) {
   const master = Boolean(raw.schedule_enabled);
   const slots = (raw.slots ?? []).map((item) =>
     createSlot(item.days.map(Number), String(item.start), String(item.end),
-      { legacy: true, completedOn: String(item.completed_on ?? ""), enabled: master && item.enabled !== false }));
+      { legacy: true, completedOn: String(item.completed_on ?? ""), ranOn: String(item.ran_on ?? ""), enabled: master && item.enabled !== false }));
   return createCourse({
     course_id: String(raw.course_id), name: String(raw.name), students, slots,
     schedule_enabled: slots.some((slot) => slot.enabled), last_auto_date: String(raw.last_auto_date ?? ""),

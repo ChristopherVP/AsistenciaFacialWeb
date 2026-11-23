@@ -56,7 +56,7 @@ test("no avisa si ya empezó, si la lista ya se tomó hoy, si el horario está a
   const started = setup(); started.reminders.check(started.now); started.reminders.check(at(started.now, 500));
   assert.equal(started.calls.speak.length, 0);
   const wait = (setupResult) => { setupResult.reminders.check(setupResult.now); setupResult.reminders.check(at(setupResult.now, 430)); };
-  const done = setup(); done.reminders._state.repository.courses[0].last_auto_date = "2026-11-23"; wait(done);
+  const done = setup(); done.course.slots[0].ran_on = "2026-11-23"; wait(done);
   const off = setup(); off.course.slots[0].enabled = false; wait(off);
   const completed = setup(); completed.course.slots[0].completed_on = "2026-11-16"; wait(completed);
   const masterOff = setup(); masterOff.course.schedule_enabled = false; wait(masterOff);

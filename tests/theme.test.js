@@ -1,4 +1,5 @@
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 
@@ -17,4 +18,11 @@ test("tema: claro por defecto, oscuro se guarda y se aplican", async () => {
   assert.equal(document.querySelector('meta[name="theme-color"]').getAttribute("content"), "#17395A");
   theme.setThemePreference("inventado"); assert.equal(theme.getThemePreference(), "dark");
   window.localStorage.setItem("af_theme", "auto"); assert.equal(theme.getThemePreference(), "light");
+});
+
+test("modo noche: los cuadros de mensaje no llevan fondo blanco fijo", () => {
+  const messagebox = readFileSync(new URL("../js/ui/messagebox.js", import.meta.url), "utf8");
+  assert.doesNotMatch(messagebox, /background\s*:\s*#fff/i);
+  const css = readFileSync(new URL("../css/estilos.css", import.meta.url), "utf8");
+  assert.match(css, /\.msgbox \.dialog-actions/);
 });

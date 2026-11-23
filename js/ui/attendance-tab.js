@@ -5,7 +5,7 @@ import { AttendanceSession } from "../attendance.js";
 import { downloadBlob } from "../backup.js";
 import { AttendanceError, CameraError, StorageError, ValidationError } from "../errors.js";
 import { Gallery } from "../face-engine.js";
-import { courseCompleteSlot, createCourse, parseTime } from "../models.js";
+import { courseCompleteSlot, courseMarkSlotRan, parseTime } from "../models.js";
 import { describeNext, dueCourses } from "../scheduler.js";
 import { Speaker } from "../voice.js";
 import { h, wait } from "./dom.js";
@@ -236,8 +236,9 @@ export class AttendanceTab {
   }
 
   _tryAutoStart(now) {
+    if (this.isRunning) return;
     for (const { course, slot } of dueCourses(this._state.repository.courses, now)) {
-      const key = `${course.course_id}|${isoDay(now)}`;
+      const key = `${course.course_id}|${isoDay(now)}|${slot.days.join("")}|${slot.start}-${slot.end}`;
       if (this._autoAttempts.has(key)) continue;
       this._autoAttempts.add(key);
       this._startAutomatic(course, slot, now).catch((error) => this._skipAutomatic(`No se pudo iniciar la lista automática: ${error.message}`));
@@ -252,7 +253,7 @@ export class AttendanceTab {
 
   async _startAutomatic(course, slot, now) {
     try {
-      await this._state.saveCourse(createCourse({ ...course, last_auto_date: isoDay(now) }), false);
+      await this._state.saveCourse(courseMarkSlotRan(course, slot, isoDay(now)), false);
     } catch (error) {
       if (!(error instanceof StorageError)) throw error;
       this._skipAutomatic(`No se pudo registrar la lista automática: ${error.message}`);

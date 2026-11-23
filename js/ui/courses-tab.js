@@ -154,7 +154,7 @@ export class CoursesTab {
   _paintCountdown({ span, course, slot }, now) {
     let text = "—";
     if (isSlotActive(course, slot)) {
-      const next = slotNextStart(slot, now, course.last_auto_date === isoDate(now));
+      const next = slotNextStart(slot, now);
       if (next !== null) text = next.running ? "▶ En curso ahora" : formatRemaining(next.start - now);
     } else if (!isSlotCompleted(slot)) text = "Apagado";
     if (span.textContent !== text) span.textContent = text;
