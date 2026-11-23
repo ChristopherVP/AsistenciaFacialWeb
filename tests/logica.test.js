@@ -21,7 +21,7 @@ test("cédula: acepta una válida y rechaza las demás con el mensaje de Python"
   assert.equal(validateCedula("1710034065"), "1710034065");
   assert.throws(() => validateCedula("1710034066"), /dígito verificador/);
   assert.throws(() => validateCedula("2510034065"), /entre 01 y 24/);
-  assert.throws(() => validateCedula("17100"), /exactamente 10/);
+  assert.throws(() => validateCedula("17100"), /no es válida/);
   assert.throws(() => validateCedula("17a0034065"), /solo puede tener números/);
   assert.equal(allowsCedulaInput("12345678901"), false);
 });

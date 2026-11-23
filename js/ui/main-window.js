@@ -35,18 +35,12 @@ export class MainWindow {
     this._tab = -1; this._before = 1;
     this._courses.onViewExcel = (id) => { this._excel.open(id); this._selectTab(EXCEL_TAB); };
     this._clock = h("span", { class: "header-clock", "aria-label": "Fecha y hora" });
-    // Solo hay aviso del navegador (su texto no se puede personalizar) si hay una lista en curso o una celda a medio editar;
-    // todo lo demás ya se guarda al instante y al salir se termina de guardar lo pendiente.
-    this._leaveGuard = (event) => {
-      if (!this._atRisk()) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
+    // Dentro de una cuenta, la X siempre pide confirmación (el texto lo pone el navegador y no se puede cambiar);
+    // si se confirma la salida, lo pendiente se guarda igual (pagehide). En el login no se instala este aviso.
+    this._leaveGuard = (event) => { event.preventDefault(); event.returnValue = ""; };
     this._exitSave = () => this._flushForExit();
     this._hiddenSave = () => { if (document.visibilityState === "hidden") this._excel.flush().catch(reportExitError); };
   }
-
-  _atRisk() { return this._attendance.isRunning || this._excel.hasPendingEdit; }
 
   _flushForExit() {
     this._excel.flush().catch(reportExitError);
@@ -142,6 +136,7 @@ export class MainWindow {
     const now = new Date();
     this._clock.textContent = clockText(now);
     this._attendance.onTick(now);
+    this._courses.onTick(now);
     this._reminders.check(now);
   }
 

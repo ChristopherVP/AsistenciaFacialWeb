@@ -101,3 +101,16 @@ test("horarios: un horario cumplido queda bloqueado, no vuelve a arrancar y solo
   assert.equal(course.slots.length, 2);
   assert.equal(models.completedSlotCount(course), 0);
 });
+
+test("horarios: cuánto falta para empezar (días, horas, minutos y segundos)", () => {
+  const slot = models.createSlot([0, 2], "09:00", "09:30");
+  const sunday = new Date(2026, 10, 22, 10, 0, 0);
+  const next = scheduler.slotNextStart(slot, sunday);
+  assert.equal(next.running, false);
+  assert.equal(scheduler.formatRemaining(next.start - sunday), "23 h 0 min 0 s");
+  assert.equal(scheduler.formatRemaining(2 * 86400_000 + 3 * 3600_000 + 4 * 60_000 + 5_000), "2 d 3 h 4 min 5 s");
+  assert.equal(scheduler.formatRemaining(75_000), "1 min 15 s");
+  assert.equal(scheduler.slotNextStart(slot, new Date(2026, 10, 23, 9, 10)).running, true);
+  const skipped = scheduler.slotNextStart(slot, new Date(2026, 10, 23, 8, 0), true);
+  assert.equal(skipped.start.getDate(), 25);
+});

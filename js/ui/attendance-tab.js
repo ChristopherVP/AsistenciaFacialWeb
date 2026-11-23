@@ -197,7 +197,7 @@ export class AttendanceTab {
       return;
     }
     const final = mode === "final" ? this._final : null;
-    course.students.forEach((student, index) => {
+    AttendanceTab.enrolled(course).forEach((student, index) => {
       const moment = present.get(student.student_id);
       let values; let tag;
       if (final !== null && !final.rosterIds.has(student.student_id)) [values, tag] = [["Nuevo", "–"], "waiting"];
@@ -207,7 +207,7 @@ export class AttendanceTab {
       else [values, tag] = [["–", "–"], "waiting"];
       this._table.add([index + 1, student.name, ...values], student.student_id, tag);
     });
-    let total = course.students.length;
+    let total = AttendanceTab.enrolled(course).length;
     if (mode === "idle") {
       this._presentStat.set("–", "Presentes");
       this._absentStat.set("–", "Sin registrar");
@@ -265,7 +265,7 @@ export class AttendanceTab {
     await this._begin(course, end, true);
     if (this._session !== null) {
       this._autoSlot = slot;
-      this._speaker.speak(`La lista de ${course.name} va a empezar. Acérquese a la cámara para registrarse.`);
+      this._speaker.speak(`La lista del curso ${course.name} va a empezar. Acérquese a la cámara para registrarse.`);
     }
   }
 
@@ -283,7 +283,7 @@ export class AttendanceTab {
       }
       let column;
       try {
-        column = await this._state.bookFor(course).startList(new Date(), course.students);
+        column = await this._state.bookFor(course).startList(new Date(), AttendanceTab.enrolled(course));
       } catch (error) {
         camera.release();
         if (!(error instanceof AttendanceError)) throw error;
@@ -442,7 +442,7 @@ export class AttendanceTab {
     this._status.textContent = "Guardando lista…";
     setChip(this._chip, "GUARDANDO", COLORS.warning);
     const present = session.present;
-    const rosterIds = new Set(course.students.map((student) => student.student_id));
+    const rosterIds = new Set(AttendanceTab.enrolled(course).map((student) => student.student_id));
     this._final = makeSnapshot(course.course_id, new Date(), rosterIds, present);
     const result = await this._finalize(course, column, new Set(present.keys()));
     if (result === null) {
@@ -476,7 +476,7 @@ export class AttendanceTab {
   async _finalize(course, column, presentIds) {
     for (;;) {
       try {
-        return await this._state.bookFor(course).finalize(column, presentIds, course.students);
+        return await this._state.bookFor(course).finalize(column, presentIds, AttendanceTab.enrolled(course));
       } catch (error) {
         if (!(error instanceof AttendanceError)) throw error;
         if (await askRetryCancel("No se pudo guardar", `${error.message}\n\n¿Reintentar?`)) continue;
@@ -491,7 +491,7 @@ export class AttendanceTab {
     const moment = new Date();
     const quote = (text) => `"${String(text).replaceAll('"', '""')}"`;
     const lines = [["Cédula", "Apellidos y nombres", isoDay(moment)].map(quote).join(",")];
-    for (const student of course.students) {
+    for (const student of AttendanceTab.enrolled(course)) {
       lines.push([quote(student.student_id), quote(student.name), presentIds.has(student.student_id) ? 1 : 0].join(","));
     }
     const stamp = `${isoDay(moment)}_${pad2(moment.getHours())}${pad2(moment.getMinutes())}${pad2(moment.getSeconds())}`;

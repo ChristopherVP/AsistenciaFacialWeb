@@ -13,9 +13,6 @@ export function detectPlatform(userAgent = globalThis.navigator?.userAgent ?? ""
 export const isInstalledApp = () =>
   Boolean(globalThis.matchMedia?.("(display-mode: standalone)").matches || globalThis.navigator?.standalone);
 
-export const notificationState = () =>
-  (typeof globalThis.Notification === "undefined" ? "unsupported" : globalThis.Notification.permission);
-
 const STEPS = Object.freeze({
   camera: Object.freeze({
     desktop: Object.freeze([
@@ -39,24 +36,6 @@ const STEPS = Object.freeze({
       "Si agregó la aplicación a la pantalla de inicio, ábrala desde ese icono y elija «Permitir» cuando aparezca el aviso de la cámara.",
     ]),
   }),
-  notifications: Object.freeze({
-    desktop: Object.freeze([
-      "En el navegador: candado 🔒 junto a la dirección → Notificaciones → Permitir.",
-      "En la aplicación instalada: menú ⋮ de la ventana → Configuración de la aplicación → Notificaciones → Permitir.",
-      "En Windows, revise que no esté activado «No molestar» o el asistente de concentración.",
-    ]),
-    android: Object.freeze([
-      "Pulse «Permitir notificaciones» en esta pantalla y elija «Permitir» en el aviso.",
-      "Si quedó bloqueado en Chrome: icono a la izquierda de la dirección → Permisos → Notificaciones → Permitir.",
-      "Si instaló la aplicación: mantenga pulsado su icono → Información de la aplicación → Notificaciones → activar.",
-      "Si el aviso no llega, revise que el teléfono no esté en «No molestar» ni con el ahorro de batería restringiendo la aplicación.",
-    ]),
-    ios: Object.freeze([
-      "Las notificaciones solo funcionan en iPhone o iPad con iOS 16.4 o superior y con la aplicación agregada a la pantalla de inicio: en Safari toque Compartir → Agregar a pantalla de inicio.",
-      "Abra la aplicación desde ese icono, entre a Ajustes y pulse «Permitir notificaciones».",
-      "Para cambiarlo después: Ajustes del iPhone → Notificaciones → Asistencia Facial.",
-    ]),
-  }),
   install: Object.freeze({
     desktop: Object.freeze([
       "En Chrome: pulse el icono de instalar en la barra de direcciones, o el menú ⋮ → Instalar Asistencia Facial.",
@@ -68,7 +47,7 @@ const STEPS = Object.freeze({
     ]),
     ios: Object.freeze([
       "En Safari: botón Compartir → Agregar a pantalla de inicio.",
-      "Abra siempre la aplicación desde ese icono para poder activar las notificaciones.",
+      "Abra siempre la aplicación desde ese icono.",
     ]),
   }),
 });
@@ -80,11 +59,6 @@ const BLOCKED = Object.freeze({
     subject: "La cámara está bloqueada", label: "Cámara",
     android: "En Chrome pulse el icono a la izquierda de la dirección → Permisos → Cámara → Permitir y recargue la página. Con la aplicación instalada: mantenga pulsado su icono → Información de la aplicación → Permisos → Cámara → Permitir.",
     ios: "En Safari toque «aA» junto a la dirección → Configuración del sitio web → Cámara → Permitir, o abra Ajustes del iPhone → Apps → Safari → Cámara.",
-  }),
-  notifications: Object.freeze({
-    subject: "Las notificaciones están bloqueadas", label: "Notificaciones",
-    android: "En Chrome pulse el icono a la izquierda de la dirección → Permisos → Notificaciones → Permitir y recargue la página. Con la aplicación instalada: mantenga pulsado su icono → Información de la aplicación → Notificaciones → activar.",
-    ios: "Abra Ajustes del iPhone → Notificaciones → Asistencia Facial → Permitir notificaciones. La aplicación debe estar agregada a la pantalla de inicio.",
   }),
 });
 

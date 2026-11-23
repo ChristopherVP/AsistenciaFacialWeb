@@ -178,17 +178,18 @@ test("flujo completo de la interfaz: cuenta → cursos → horario → lista →
     assert.ok(byText("h2", "Cámara del sistema"));
   });
 
-  await t.test("al salir con la X: sin aviso si no hay nada en riesgo, y sin aviso en el login", async () => {
-    const idle = new window.Event("beforeunload", { cancelable: true });
-    window.dispatchEvent(idle);
-    assert.equal(idle.defaultPrevented, false);
+  await t.test("al salir con la X dentro de la cuenta pide confirmación y guarda lo pendiente", async () => {
+    const inside = new window.Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(inside);
+    assert.equal(inside.defaultPrevented, true);
     window.dispatchEvent(new window.Event("pagehide"));
     await sleep(20);
   });
 
   await t.test("cerrar sesión devuelve el control", async () => {
     click(byText("button", "Cerrar sesión"));
-    await sleep(100);
+    click(await waitFor(() => byText("dialog button", "Sí"), "confirmación de cerrar sesión"));
+    await sleep(150);
     assert.equal(state.sessionActive, false);
     const atLogin = new window.Event("beforeunload", { cancelable: true });
     window.dispatchEvent(atLogin);

@@ -53,6 +53,8 @@ The user interface is in **Spanish**. After the first visit the app works **with
 - Create, rename and delete **courses**; each course has its own students, schedule and attendance sheet.
 - **Student registration with face scan**: guided capture of 5 frontal samples with an on-screen progress bar and **Spanish voice instructions** (Web Speech API), a mandatory consent checkbox and automatic **duplicate-face detection** against every student registered in any course under a different cédula.
 - Students are always listed **alphabetically by surname (A–Z)**.
+- **Pending students are left out of the attendance list:** students who have not finished their face registration do not appear in *Tomar lista*, are not counted and are not marked absent in the Excel until they finish.
+- **Live countdown** in each schedule row (*Falta para empezar*: days, hours, minutes and seconds).
 - **Completed schedules:** once an automatic list has been taken and saved, its schedule is marked **✔ Cumplido** with the date, can no longer be edited, switched or reused, and can only be removed.
 - **Several schedules per course**, each one with its own **Activa / Apagada** button, plus **Activar todos**, **Desactivar todos** and **Modificar horario** (edit days and times of an existing schedule without deleting it).
 - Students added from the Excel tab or imported from an Excel file stay **pending** (`⏳ Falta rostro`) until they finish their face scan with **✔ Terminar registro**.
@@ -74,8 +76,8 @@ The user interface is in **Spanish**. After the first visit the app works **with
 **Settings and appearance**
 - Camera chooser with live preview and a clear “in use” badge; virtual cameras (OBS and similar) are ignored.
 - **Light (day) and dark (night) themes**, switchable from a Day/Night button in the header.
-- **Device permissions** card with the live status of the camera and notifications, a button to request the camera and a guide for **PC, Android and iPhone/iPad** on how to turn the camera on and give it permission (the ⋮ window menu does not exist on phones). The notifications card has its own button and its own per-device guide. The guide for your device opens automatically.
-- Opt-in **notification permission** for schedule reminders and an **Install application** button.
+- **Device permissions** card with the live status of the camera, a button to request it and a guide for **PC, Android and iPhone/iPad** on how to turn the camera on and give it permission (the ⋮ window menu does not exist on phones). The guide for your device opens automatically.
+- **Scheduled-list reminder** card (choose 1, 2 or 3 minutes) and an **Install application** button.
 - *My account* panel to enable or disable one-click login.
 
 **Other**
@@ -97,7 +99,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 | FR-04 | Register students with cédula, name and a guided face scan of 5 frontal samples; reject duplicated cédulas and faces already registered under another cédula in any course. |
 | FR-05 | Recognize students through the camera and mark them present after consecutive confirmations. |
 | FR-06 | Define weekly time slots per course (each one **at most 40 minutes long**), edit them, turn each one on or off individually (or all at once) and run **automatic attendance lists** inside the active ones, once per day. |
-| FR-07 | Notify the user before a scheduled list (system notification and voice; 5 and 1 minutes before by default, configurable in *Ajustes*). |
+| FR-07 | Warn before a scheduled list while the app is open: the device vibrates (when it can) and a voice says the course will take attendance soon; 1 minute before by default, configurable to 2 or 3 in *Ajustes*. |
 | FR-08 | Keep one attendance book per course with one column per list and a percentage column. |
 | FR-09 | Show the book in an **Excel-style editor** with editable cells, extra columns, formulas, row and column insertion and deletion, undo / redo and clipboard support. |
 | FR-10 | Hide rows and columns and restore them from a toolbar, a context menu or the keyboard. |
@@ -107,7 +109,7 @@ The user interface is in **Spanish**. After the first visit the app works **with
 | FR-14 | Choose and preview the camera, and ignore virtual cameras. |
 | FR-15 | Offer a light (day) and a dark (night) theme. |
 | FR-16 | Work offline and be installable as a PWA. |
-| FR-17 | Let the user request and fix the camera and notification permissions from *Ajustes*, with separate instructions for PC, Android and iPhone/iPad. |
+| FR-17 | Let the user request and fix the camera permission from *Ajustes*, with separate instructions for PC, Android and iPhone/iPad. |
 
 ### Non-functional requirements
 
@@ -212,7 +214,7 @@ The main window has a header (logo, user name, **Día/Noche** theme button, **Ce
 5. **Set a schedule** *(optional)*. In *⏰ Horario de lista automática* press **➕ Agregar horario**, pick the weekdays and the start and end times (a list lasts **at most 40 minutes**: the end time follows the start time and is capped automatically). Each row has its own **● Activa / ○ Apagada** button, so you can turn on a single schedule; **✔ Activar todos** and **○ Desactivar todos** change every schedule at once, and **✏ Modificar horario** edits the selected row (it keeps its on/off state). The course chip shows *SIN HORARIO*, *AUTOMÁTICA APAGADA* or *AUTOMÁTICA ACTIVA* (at least one schedule on).
 6. **Take attendance.** *📷 Tomar lista*: type or pick the course, press start and let the camera recognize the students. Press **■ Finalizar y guardar** to close the list; absent students are saved as `0`. The list also closes by itself when everybody is present or, for automatic lists, when the time slot ends.
 7. **View, edit or download the Excel.** In *📚 Cursos* press **👁 Ver Excel** (opens that course in the *📊 Excel* tab) or **⬇ Descargar**.
-8. **Settings.** *⚙ Ajustes*: choose and test the camera, pick the theme, request or fix the **device permissions** (camera and notifications, with guides for PC, Android and iPhone), install the app and manage one-click login.
+8. **Settings.** *⚙ Ajustes*: choose and test the camera, pick the theme, request or fix the **camera permission** (with guides for PC, Android and iPhone), choose the reminder minutes, install the app and manage one-click login.
 
 ---
 
@@ -298,12 +300,12 @@ The `.xlsx` is built with a local copy of SheetJS (`xlsx-js-style`): blue bold h
 - The app (or its installed window) must be **open and signed in**: browsers throttle or suspend timers in closed or hidden tabs.
 
 **Reminders** (`reminders.js`)
-- **5 minutes before** (default; 2, 3, 5, 10 or 15 can be chosen in *Ajustes → Permiso de notificaciones*) a scheduled list a system notification is shown (requires the permission; optional). Tapping it opens or focuses the app.
-- **1 minute before** (default; 1, 2 or 3 can be chosen) a voice says that the scheduled list of the course will start soon (no permission needed, and it stays silent if a list is already running).
+- **1 minute before** (default; 1, 2 or 3 can be chosen in *Ajustes → Aviso de lista programada*) the device **vibrates** (Android and other browsers that support it) and a **voice** says «Pronto se tomará lista al curso …». When the list starts, the voice says again that the course list is about to start.
 - **Completed schedules never remind or start again:** a schedule marked *Cumplido* is ignored by the scheduler and the reminders.
+- **Why there are no system notifications:** a web page that is closed cannot notify, vibrate or take attendance (that would need a push server). The reminders therefore only work while the app is open.
 - **No sudden alerts:** each reminder is only given if the app had already seen the schedule *before* that reminder's window began. A schedule created, turned on or opened inside the window does not fire the notification at once; only the reminder that can still arrive on time is given (for example, a schedule created 3 minutes ahead gets only the voice, at 1 minute before).
 - A minimized or hidden window may run its clock more slowly (browser power saving), so a reminder can arrive up to about a minute late.
-- Each reminder is sent once per day, even with several windows open. If the installed app is in use, it is the one that notifies and the browser tab stays quiet.
+- Each reminder is given once per day, even with several windows open.
 
 ---
 
@@ -343,7 +345,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | **Biometric data** | Only **face embeddings** are stored (numeric vectors), never photos or video. They never leave the browser. |
 | **Consent** | Registering a face requires accepting a consent notice. |
 | **Local data** | All data lives in the browser's IndexedDB; whoever has access to that browser profile has access to the data. |
-| **Leave guard** | The browser asks for confirmation before closing the window only if a list is running or a sheet cell is half-edited; at the login screen, and when nothing is at risk, the window closes directly. |
+| **Leave guard** | Inside an account, the ✕ button always asks the browser's own «leave the app?» confirmation (its text cannot be customized); if you confirm, pending work is saved anyway. At the login screen the window closes directly. |
 | **Excel formulas** | The evaluator checks the expression against a whitelist of characters and functions before evaluating it. |
 | **No secrets in code** | There are no keys, tokens or passwords in the source; there is no backend. |
 
@@ -355,7 +357,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 
 | Field | Rule |
 |-------|------|
-| **Cédula** | Exactly 10 digits, numeric only, province code 01–24, third digit ≤ 5 and valid check digit; unique per course. |
+| **Cédula** | Numeric only, valid province code (01–24), third digit ≤ 5 and valid check digit; unique per course. The screens just say «Cédula». |
 | **Names** | Letters (including accents and ñ) and spaces, at least two words, up to 60 characters; stored in upper case. |
 | **Username** | 4–20 characters, lowercase letters, digits, `.` and `_`, starting with a letter; unique. |
 | **Password** | 8–64 characters; must match its confirmation. |
@@ -387,7 +389,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | `excel.js` / `excel-import.js` | Styled `.xlsx` export and `.xlsx` import (SheetJS, loaded on demand). |
 | `camera.js` / `voice.js` | Camera enumeration, opening and drawing; Spanish speech synthesis that prefers a female voice. |
 | `theme.js` | Light / dark theme, stored in the browser and synchronized between windows. |
-| `permissions.js` | Device detection (PC, Android, iPhone/iPad), permission states and the step-by-step texts for camera, notifications and installation. |
+| `permissions.js` | Device detection (PC, Android, iPhone/iPad) and the step-by-step texts for the camera permission and for installing the app. |
 | `backup.js` | `downloadBlob` (used by every download) and the JSON backup export / import functions (see [Known Limitations](#known-limitations)). |
 | `pwa.js` | Service worker registration and the install prompt. |
 | `diagnostico.js` | Logic of the diagnostics page. |
@@ -429,13 +431,12 @@ Each course has one *book*:
 |-------|-----|---------|
 | `localStorage` | `af_theme` | Chosen theme (light or dark). |
 | `localStorage` | `af_reminders` | Reminders already sent today (shared between windows). |
-| `localStorage` | `af_reminder_leads` | Chosen minutes for the notification and the voice reminder. |
-| `localStorage` | `af_app_seen` | The installed app was opened recently (so only one window notifies). |
+| `localStorage` | `af_reminder_lead` | Chosen minutes (1, 2 or 3) for the voice and vibration reminder. |
 | `sessionStorage` | `af_user`, `af_tab`, `af_course` | Keep the session, the tab and the course when the page reloads; cleared on logout. |
 
 Other details:
 - The browser is asked for **persistent storage** so it does not discard the data when disk space is low.
-- **Saving on exit:** when the window is closed (the ✕ button) or reloaded, the app finishes what is pending the same way *Cerrar sesión* does: a running list is finished and saved, and a half-edited sheet cell is committed. Browsers do not guarantee that asynchronous work completes while a page unloads, so with a list running the browser's own confirmation appears first; choose *Cancelar* and use *Finalizar y guardar* if you want to be certain.
+- **Saving on exit:** when the window is closed (the ✕ button) or reloaded, the app finishes what is pending the same way *Cerrar sesión* does: a running list is finished and saved, and a half-edited sheet cell is committed. Browsers do not guarantee that asynchronous work completes while a page unloads, so if a list is running and you want to be certain, choose *Cancelar* in the confirmation and use *Finalizar y guardar*.
 - Tabs and windows of the app stay in sync through a `BroadcastChannel` (`af-courses`) and an internal subscription mechanism: changes made in the Excel tab appear immediately in *Cursos*, and lists taken appear in the sheet.
 - **Deleting a course also deletes its stored attendance**: download the Excel first if you need it.
 
@@ -452,7 +453,6 @@ Other details:
 - **Models, WebAssembly, `vendor/` and icons:** *cache-first*.
 - **Navigation offline:** falls back to the cached `index.html`.
 - **Activation:** old caches are deleted and the new worker takes control immediately.
-- **Notifications:** tapping a schedule notification focuses the open window or opens the app.
 
 Whenever you add a JS module, add it to the `CORE` list in `sw.js` (a test checks this) and increase `VERSION` when you publish.
 
@@ -533,7 +533,7 @@ npm test
 | `logica.test.js` | Cédula, names and usernames, schedules, scheduler, `Gallery` matching, attendance session and book, face enrollment, users and login throttling (real PBKDF2), courses, voice selection, virtual cameras. |
 | `sheet-model.test.js` | Import merge, formulas and percentages, hiding and mark validation. |
 | `excel-tab.test.js` | The Excel tab: files per course, opening a sheet, multiple selection, hiding and deleting. |
-| `reminders.test.js` | Notification and voice at the chosen minutes (5 and 1 by default), no sudden alerts for schedules created inside the window, permission, duplicate and on/off rules, installed app versus browser. |
+| `reminders.test.js` | Vibration and voice at the chosen minutes (1 by default), no sudden alerts for schedules created inside the window, duplicate, on/off and completed rules. |
 | `pwa.test.js` | Service worker file list, every JS module cached, installable manifest. |
 | `theme.test.js` | Light / dark theme persistence. |
 | `permisos-horario.test.js` | Device detection and permission texts, the 40-minute slot limit (and legacy courses) and the schedule dialog. |
@@ -546,7 +546,7 @@ Manual check:
 3. Open the *Excel* tab, edit a cell, add a column with `=SUM(D2:E2)` and reload: the changes persist.
 4. Import an `.xlsx`, check that students are sorted by surname and marked `⏳ Falta rostro` in *Cursos*.
 5. Download the `.xlsx` and edit it: the program's data must not change.
-6. Set a slot about 10 minutes ahead and turn on the automatic list (or choose 2 and 1 minutes in *Ajustes* and use a slot 4 minutes ahead): the notification must come at the chosen minutes, the voice 1 minute before, and the list must start by itself.
+6. Set a slot about 10 minutes ahead and turn on the automatic list (or choose 2 minutes in *Ajustes* and use a slot 4 minutes ahead): the device must vibrate and the voice must speak at the chosen minute, and the list must start by itself.
 7. With the app already open, go offline in DevTools and reload: it must keep working.
 
 ---
@@ -576,7 +576,7 @@ This is an **educational project**, not a certified attendance or proctoring sys
 - **Precision level is fixed:** the *Flexible / Equilibrado / Estricto* levels exist in the code but the interface runs on *Equilibrado*.
 - **Automatic lists need the app open and signed in:** browsers throttle timers in hidden tabs and a web page cannot wake itself up.
 - **No live Excel file on disk:** attendance is stored in the browser and the `.xlsx` is downloaded on demand.
-- **Pending students count as absent** in lists until they complete their face registration.
+- **Pending students are not part of the list** until they complete their face registration: they do not appear in *Tomar lista* and are left blank (not absent) in the Excel.
 - **Deleting a row in the Excel tab** removes it only from the sheet; the student stays in the course. Renaming a student in the sheet does not rename them in the course.
 - **Formulas are a safe subset** of Excel (the functions listed above), not the full language.
 - **Accuracy depends on lighting, camera quality and angle.**
@@ -597,7 +597,6 @@ This is an **educational project**, not a certified attendance or proctoring sys
 | A student is not recognized | Improve lighting, face the camera, or raise the tolerance (see [Precision levels](#precision-levels)). Re-registering the student with better samples also helps. |
 | Two people are confused | Use the *Estricto* level and register the students again with better samples. |
 | The automatic list did not start | The app must be open and signed in, the course must have the schedule turned on, at least one student with a completed face registration, and the list for that day must not have been taken already. |
-| I do not get notifications | Press **🔔 Dar permiso de notificaciones** in *Ajustes → Permiso de notificaciones*; if it is blocked, follow the guide for your device in that same card. On iPhone/iPad the app must be added to the Home Screen (iOS 16.4+). |
 | The login page shows a saved-user card but I do not want it | Log in normally and untick *«Entrar con un clic»* in *Ajustes → Mi cuenta*. |
 | My data disappeared | The browser's site data was cleared or you opened a different domain (`localhost` and the published site do not share data). |
 | `npm test` never ends | Use the project script (`npm test`), which runs Node with `--test-force-exit`. |

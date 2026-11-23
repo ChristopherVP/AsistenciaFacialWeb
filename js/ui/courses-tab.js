@@ -5,8 +5,9 @@ import { downloadBlob } from "../backup.js";
 import { buildWorkbookBytes, loadXlsx } from "../excel.js";
 import {
   activeSlotCount, completedSlotCount, courseAddSlot, courseAddStudent, courseRemoveSlot, courseRemoveStudent, courseReplaceSlot,
-  courseSetAllSlots, courseToggleSlot, createCourse, isSlotActive, isSlotCompleted, slotDaysText, slotLabel, slotMinutes,
+  courseSetAllSlots, courseToggleSlot, createCourse, isoDate, isSlotActive, isSlotCompleted, slotDaysText, slotLabel, slotMinutes,
 } from "../models.js";
+import { formatRemaining, slotNextStart } from "../scheduler.js";
 import { excelFileName } from "../storage.js";
 import { CameraPreviewDialog, NameDialog, RegistrationDialog, SlotDialog } from "./dialogs.js";
 import { h } from "./dom.js";
@@ -54,7 +55,7 @@ export class CoursesTab {
       [{ key: "n", title: "#", align: "center", width: 50 }, { key: "cedula", title: "Cédula", align: "center", width: 150 }, { key: "nombre", title: "Apellidos y nombres" }],
       { height: 220, label: "Estudiantes" });
     this._slotsTable = new DataTable(
-      [{ key: "dias", title: "Días" }, { key: "inicio", title: "Inicio", align: "center", width: 90 }, { key: "fin", title: "Fin", align: "center", width: 90 }, { key: "duracion", title: "Duración", align: "center", width: 100 }, { key: "estado", title: "Automática", align: "center", width: 130 }],
+      [{ key: "dias", title: "Días" }, { key: "inicio", title: "Inicio", align: "center", width: 90 }, { key: "fin", title: "Fin", align: "center", width: 90 }, { key: "duracion", title: "Duración", align: "center", width: 100 }, { key: "estado", title: "Automática", align: "center", width: 130 }, { key: "falta", title: "Falta para empezar", align: "center", width: 200 }],
       { height: 150, label: "Horarios" });
     this._enabledText = h("span", { class: "hint", role: "status", "aria-live": "polite" }, "Sin horarios.");
     const section = (title, ...content) => h("div", { style: "margin-top:10px" }, card([h("h3", { class: "card-title" }, title), ...content]));
@@ -136,10 +137,31 @@ export class CoursesTab {
     this._studentsTable.setEmptyText("Aún no hay estudiantes. Pulse «Agregar estudiante».");
     const keptSlot = this._slotsTable.selected;
     this._slotsTable.clear();
+    this._countdowns = [];
     course.slots.forEach((slot, index) => this._slotsTable.add(
-      [slotDaysText(slot), slot.start, slot.end, `${slotMinutes(slot)} min`, this._slotButton(course, slot, index)], String(index)));
+      [slotDaysText(slot), slot.start, slot.end, `${slotMinutes(slot)} min`, this._slotButton(course, slot, index), this._countdownCell(course, slot)], String(index)));
     this._slotsTable.setEmptyText("Sin horarios.");
     if (keptSlot !== null) this._slotsTable.select(keptSlot);
+  }
+
+  _countdownCell(course, slot) {
+    const entry = { span: h("span", { style: "font-variant-numeric:tabular-nums" }), course, slot };
+    this._countdowns.push(entry);
+    this._paintCountdown(entry, new Date());
+    return entry.span;
+  }
+
+  _paintCountdown({ span, course, slot }, now) {
+    let text = "—";
+    if (isSlotActive(course, slot)) {
+      const next = slotNextStart(slot, now, course.last_auto_date === isoDate(now));
+      if (next !== null) text = next.running ? "▶ En curso ahora" : formatRemaining(next.start - now);
+    } else if (!isSlotCompleted(slot)) text = "Apagado";
+    if (span.textContent !== text) span.textContent = text;
+  }
+
+  onTick(now) {
+    for (const entry of this._countdowns ?? []) this._paintCountdown(entry, now);
   }
 
   _slotButton(course, slot, index) {

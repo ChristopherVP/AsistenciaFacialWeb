@@ -91,7 +91,7 @@ export class RegistrationDialog {
       "Complete los datos y pulse «Iniciar escaneo facial». La voz le guiará.");
     return h("div", {},
       h("h3", { class: "card-title" }, "Datos personales"),
-      h("label", { class: "field", style: "margin-top:0" }, h("span", {}, "Cédula (10 dígitos)"), this._cedula),
+      h("label", { class: "field", style: "margin-top:0" }, h("span", {}, "Cédula"), this._cedula),
       this._cedulaHint,
       h("label", { class: "field", style: "margin-top:0" }, h("span", {}, "Apellidos y nombres"), this._name),
       h("div", { class: "hint", style: "margin:2px 0 12px" }, "Ejemplo: PÉREZ GÓMEZ JUAN CARLOS"),

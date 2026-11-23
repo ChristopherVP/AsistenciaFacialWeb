@@ -35,6 +35,31 @@ export function nextRun(course, now) {
   return best;
 }
 
+export function slotNextStart(slot, now, skipToday = false) {
+  const startMinutes = parseTime(slot.start);
+  const endMinutes = parseTime(slot.end);
+  for (let offset = skipToday ? 1 : 0; offset <= 7; offset += 1) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    if (!slot.days.includes(weekday(day))) continue;
+    const start = atMinutes(day, startMinutes);
+    const end = atMinutes(day, endMinutes);
+    if (now >= start && now < end) return { start, running: true };
+    if (start > now) return { start, running: false };
+  }
+  return null;
+}
+
+export function formatRemaining(milliseconds) {
+  const total = Math.max(0, Math.ceil(milliseconds / 1000));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  if (days > 0) return `${days} d ${hours} h ${minutes} min ${seconds} s`;
+  if (hours > 0) return `${hours} h ${minutes} min ${seconds} s`;
+  return `${minutes} min ${seconds} s`;
+}
+
 export function describeNext(courses, now) {
   const candidates = courses
     .map((course) => ({ run: nextRun(course, now), course }))

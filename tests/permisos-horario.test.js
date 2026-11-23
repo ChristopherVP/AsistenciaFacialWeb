@@ -22,7 +22,7 @@ test("plataforma: detecta iPhone, iPad, Android y computador", () => {
 });
 
 test("permisos: hay pasos para cada tema y dispositivo, y el mensaje cambia según el equipo", () => {
-  for (const kind of ["camera", "notifications", "install"]) {
+  for (const kind of ["camera", "install"]) {
     for (const platform of Object.keys(permissions.PLATFORMS)) assert.ok(permissions.helpSteps(kind, platform).length > 0, `${kind}/${platform}`);
   }
   assert.match(permissions.blockedMessage("camera", "desktop", true), /menú ⋮ de la ventana/);
@@ -30,7 +30,6 @@ test("permisos: hay pasos para cada tema y dispositivo, y el mensaje cambia seg�
   assert.match(permissions.blockedMessage("camera", "android", true), /Información de la aplicación/);
   assert.doesNotMatch(permissions.blockedMessage("camera", "android", true), /menú ⋮ de la ventana/);
   assert.match(permissions.blockedMessage("camera", "ios", false), /aA/);
-  assert.match(permissions.blockedMessage("notifications", "ios", true), /pantalla de inicio/);
 });
 
 test("horario: máximo 40 minutos, y los cursos guardados con más tiempo se siguen leyendo", () => {

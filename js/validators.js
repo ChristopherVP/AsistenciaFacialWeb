@@ -45,7 +45,7 @@ export function validateCedula(text) {
   const value = text.trim();
   if (!value) throw new ValidationError("Escribe la cédula.");
   if (!DIGITS_ONLY.test(value)) throw new ValidationError("La cédula solo puede tener números.");
-  if (value.length !== 10) throw new ValidationError("La cédula debe tener exactamente 10 dígitos.");
+  if (value.length !== 10) throw new ValidationError("La cédula no es válida: revise el número.");
   const province = Number(value.slice(0, 2));
   if (province < 1 || province > MAX_PROVINCE_CODE) {
     throw new ValidationError(

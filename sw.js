@@ -1,5 +1,5 @@
 /* Service worker: la aplicación funciona sin internet tras la primera visita. */
-const VERSION = "asistencia-facial-v11";
+const VERSION = "asistencia-facial-v12";
 const CORE = [
   "./", "./index.html", "./manifest.webmanifest", "./css/estilos.css", "./icons/icon.svg",
   "./icons/icon-192.png", "./icons/icon-512.png",
@@ -57,16 +57,5 @@ self.addEventListener("fetch", (event) => {
       if (request.mode === "navigate") return (await cache.match("./index.html")) ?? Response.error();
       throw error;
     }
-  })());
-});
-
-// Al tocar el aviso de una lista programada: se abre (o se enfoca) la aplicación para iniciar sesión.
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  event.waitUntil((async () => {
-    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    const target = windows.find((client) => client.visibilityState === "visible") ?? windows[0];
-    if (target) { await target.focus(); return; }
-    await self.clients.openWindow("./");
   })());
 });

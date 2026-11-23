@@ -3,12 +3,12 @@ import { DEFAULT_SETTINGS } from "../models.js";
 import { Camera, detectCameras, displayName } from "../camera.js";
 import { AuthError, CameraError } from "../errors.js";
 import { installer } from "../pwa.js";
-import { PLATFORMS, detectPlatform, helpSteps, notificationState } from "../permissions.js";
+import { PLATFORMS, detectPlatform, helpSteps } from "../permissions.js";
 import { CameraPreviewDialog } from "./dialogs.js";
 import { h } from "./dom.js";
 import { THEMES, getThemePreference, setThemePreference } from "../theme.js";
 import { ValidationError } from "../errors.js";
-import { NOTIFY_CHOICES, VOICE_CHOICES, getReminderLeads, notificationStatus, requestNotifications, saveReminderLeads } from "./reminders.js";
+import { LEAD_CHOICES, getReminderLead, saveReminderLead, vibrationSupported } from "./reminders.js";
 import { showError } from "./messagebox.js";
 import { card } from "./widgets.js";
 
@@ -22,12 +22,6 @@ const CAMERA_STATE_TEXT = Object.freeze({
   prompt: "Aún sin decidir: pulse «Permitir cámara» y elija «Permitir»",
 });
 const CAMERA_STATE_UNKNOWN = "No se puede comprobar en este navegador: pulse «Permitir cámara»";
-const NOTIFICATION_STATE_TEXT = Object.freeze({
-  granted: "✔ Permitidas",
-  denied: "⛔ Bloqueadas: siga los pasos de más abajo para su dispositivo",
-  default: "Aún sin decidir (es opcional): pulse «Permitir notificaciones»",
-  unsupported: "No disponibles en este dispositivo o navegador (vea los pasos de más abajo)",
-});
 
 export class SettingsTab {
   constructor(state) {
@@ -58,7 +52,7 @@ export class SettingsTab {
       this._buildAppearance(),
       this._buildAccount(),
       this._buildPermissions(),
-      this._buildNotifications(),
+      this._buildReminders(),
       this._buildInstall());
   }
 
@@ -102,7 +96,6 @@ export class SettingsTab {
 
   _buildPermissions() {
     this._cameraPermission = h("p", { style: "margin:10px 0 0", role: "status", "aria-live": "polite" });
-    this._notificationPermission = h("p", { style: "margin:4px 0 0", role: "status", "aria-live": "polite" });
     const permitCamera = async () => { await this.refreshCameras(); await this.refreshPermissions(); };
     globalThis.document?.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") this.refreshPermissions();
@@ -112,12 +105,11 @@ export class SettingsTab {
       h("h2", { class: "card-title" }, "🔐  Permisos del dispositivo"),
       h("p", { class: "hint", style: "margin:4px 0 10px" },
         "Desde aquí puede pedir cada permiso y ver su estado, sin usar el menú ⋮ de la ventana (que no existe en el celular). " +
-        "La cámara es necesaria para tomar lista; las notificaciones son opcionales y se activan más abajo."),
+        "La cámara es necesaria para tomar lista."),
       h("div", { class: "row", style: "flex-wrap:wrap" },
         h("button", { type: "button", class: "btn", onClick: permitCamera }, "📷  Permitir cámara"),
         h("button", { type: "button", class: "btn", onClick: () => this.refreshPermissions() }, "🔄  Actualizar estado")),
       this._cameraPermission,
-      this._notificationPermission,
       h("p", { class: "hint", style: "margin:10px 0 0" },
         "Si un permiso quedó bloqueado, el navegador ya no vuelve a preguntar: hay que activarlo a mano. Elija su dispositivo:"),
       this._guide("📷  Cómo prender la cámara y darle permiso", "camera"),
@@ -134,66 +126,40 @@ export class SettingsTab {
       camera = CAMERA_STATE_UNKNOWN;
     }
     this._cameraPermission.textContent = `Cámara: ${camera}`;
-    this._notificationPermission.textContent = `Notificaciones: ${NOTIFICATION_STATE_TEXT[notificationState()] ?? NOTIFICATION_STATE_TEXT.unsupported}`;
-    if (this._notifyStatus) this._notifyStatus.textContent = notificationStatus();
   }
 
-  _buildNotifications() {
-    this._notifyStatus = h("p", { class: "hint", style: "margin:8px 0 0", role: "status", "aria-live": "polite" }, notificationStatus());
-    const item = (title, text) => h("li", { style: "margin:6px 0" }, h("strong", {}, `${title} `), text);
-    const leads = getReminderLeads();
-    const choice = (values, current) => {
-      const select = h("select", { class: "input", style: "width:auto" }, values.map((value) => h("option", { value: String(value) }, `${value} min antes`)));
-      select.value = String(current);
-      return select;
-    };
-    this._notifySelect = choice(NOTIFY_CHOICES, leads.notifyMinutes);
-    this._voiceSelect = choice(VOICE_CHOICES, leads.voiceMinutes);
-    this._leadStatus = h("span", { class: "hint", role: "status", "aria-live": "polite" });
-    this._noticeTitle = h("strong", {});
-    this._voiceTitle = h("strong", {});
-    const syncLeadTexts = () => {
-      const current = getReminderLeads();
-      this._noticeTitle.textContent = `${current.notifyMinutes} minutos antes de una lista programada. `;
-      this._voiceTitle.textContent = `${current.voiceMinutes} ${current.voiceMinutes === 1 ? "minuto" : "minutos"} antes. `;
-    };
-    syncLeadTexts();
-    const saveLeads = () => {
+  _buildReminders() {
+    const select = h("select", { class: "input", style: "width:auto", "aria-label": "Minutos de anticipación del aviso" },
+      LEAD_CHOICES.map((minutes) => h("option", { value: String(minutes) }, minutes === 1 ? "1 minuto antes" : `${minutes} minutos antes`)));
+    select.value = String(getReminderLead());
+    const status = h("span", { class: "hint", role: "status", "aria-live": "polite" });
+    const save = () => {
       try {
-        saveReminderLeads({ notifyMinutes: Number(this._notifySelect.value), voiceMinutes: Number(this._voiceSelect.value) });
+        saveReminderLead(Number(select.value));
       } catch (error) {
         if (!(error instanceof ValidationError)) throw error;
-        this._leadStatus.textContent = `⚠ ${error.message}`;
+        status.textContent = `⚠ ${error.message}`;
         return;
       }
-      syncLeadTexts();
-      this._notifyStatus.textContent = notificationStatus();
-      this._leadStatus.textContent = "✔ Avisos guardados.";
+      status.textContent = "✔ Aviso guardado.";
     };
+    const item = (title, text) => h("li", { style: "margin:6px 0" }, h("strong", {}, `${title} `), text);
     return card([
-      h("h2", { class: "card-title" }, "🔔  Permiso de notificaciones"),
+      h("h2", { class: "card-title" }, "⏰  Aviso de lista programada"),
       h("p", { class: "hint", style: "margin:4px 0 10px" },
-        "Para avisarle antes de una lista programada, el programa necesita su permiso para mostrar notificaciones en este dispositivo. Es opcional: sin el permiso todo lo demás funciona igual."),
-      h("button", { type: "button", class: "btn", onClick: async () => { await requestNotifications(); await this.refreshPermissions(); } }, "🔔  Dar permiso de notificaciones"),
-      this._notifyStatus,
-      this._guide("📖  Cómo activar las notificaciones en su dispositivo", "notifications"),
-      h("h3", { style: "margin:16px 0 6px;font-size:15px" }, "¿Con cuánta anticipación avisar?"),
+        "Antes de que empiece una lista programada, el dispositivo vibra y una voz dice «Pronto se tomará lista al curso …». Cuando la lista empieza, la voz repite que va a empezar."),
       h("div", { class: "row", style: "flex-wrap:wrap" },
-        h("label", { class: "row" }, "Notificación:", this._notifySelect),
-        h("label", { class: "row" }, "Voz:", this._voiceSelect),
-        h("button", { type: "button", class: "btn", onClick: saveLeads }, "💾  Guardar avisos"),
-        this._leadStatus),
-      h("p", { class: "hint", style: "margin:6px 0 0" },
-        "Los avisos solo salen si el programa ya estaba abierto antes de esa hora. Si crea o activa un horario cuando faltan menos minutos que el aviso, ese aviso no se da de golpe: solo se da el que todavía llegue a tiempo."),
-      h("h3", { style: "margin:16px 0 4px;font-size:15px" }, "¿Qué le notificará el programa y por qué?"),
+        h("label", { class: "row" }, "Avisar:", select),
+        h("button", { type: "button", class: "btn", onClick: save }, "💾  Guardar aviso"),
+        status),
+      h("p", { class: "hint", style: "margin:8px 0 0" },
+        vibrationSupported() ? "✔ Este dispositivo permite vibrar." : "Este dispositivo o navegador no permite vibrar (iPhone, iPad y la mayoría de computadores): solo sonará la voz."),
+      h("h3", { style: "margin:16px 0 4px;font-size:15px" }, "Cosas que debe saber"),
       h("ul", { style: "margin:0;padding-left:20px;font-size:14px;line-height:1.45" },
-        h("li", { style: "margin:6px 0" }, this._noticeTitle,
-          "Aparece un aviso con el nombre del curso y la hora. Al tocarlo se abre el programa para que inicie sesión. Sirve porque la lista automática solo arranca si el programa está abierto con la sesión iniciada."),
-        h("li", { style: "margin:6px 0" }, this._voiceTitle, "Una voz anuncia «Pronto iniciará la lista programada del curso …». Esto es un sonido del programa, no una notificación, y no necesita permiso."),
-        item("Solo si el programa está abierto.", "Puede estar minimizado, pero si lo cierra o el equipo está apagado o suspendido no se puede avisar."),
-        item("Un solo aviso.", "Si tiene la aplicación instalada, avisa la aplicación y el navegador no. Si no la tiene instalada, avisa el navegador."),
-        item("Nada más.", "No envía publicidad, no escribe a los estudiantes y no manda ningún dato fuera de este dispositivo."),
-        item("Puede quitar el permiso cuando quiera", "desde «Permisos del dispositivo» (más arriba), el candado junto a la dirección o la configuración de la aplicación.")),
+        item("Solo con el programa abierto.", "Una página web cerrada no puede avisar, vibrar ni tomar lista: para que la lista automática funcione, el programa debe estar abierto con la sesión iniciada."),
+        item("Sin sorpresas.", "Si crea o activa un horario cuando falta menos tiempo que el aviso, ese aviso no se da de golpe."),
+        item("La vibración necesita un toque previo.", "El navegador solo deja vibrar si usted ya tocó la pantalla alguna vez con el programa abierto."),
+        item("Nada más.", "No se envía ningún dato fuera de este dispositivo.")),
     ], { padding: 18 });
   }
 
