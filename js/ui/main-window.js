@@ -7,7 +7,7 @@ import { ExcelTab } from "./excel-tab.js";
 import { ScheduleReminders } from "./reminders.js";
 import { getThemePreference, resolveTheme, toggleTheme } from "../theme.js";
 import { h, wait } from "./dom.js";
-import { askYesNo, showError, showInfo, showWarning } from "./messagebox.js";
+import { askYesNo, showWarning } from "./messagebox.js";
 import { SavePrompt } from "./save-prompt.js";
 import { SettingsTab } from "./settings-tab.js";
 
@@ -37,7 +37,11 @@ export class MainWindow {
     this._clock = h("span", { class: "header-clock", "aria-label": "Fecha y hora" });
     // Dentro de una cuenta, la X siempre pide confirmación (el texto lo pone el navegador y no se puede cambiar);
     // si se confirma la salida, lo pendiente se guarda igual (pagehide). En el login no se instala este aviso.
-    this._leaveGuard = (event) => { event.preventDefault(); event.returnValue = ""; };
+    this._leaveGuard = (event) => {
+      this._excel.flush().catch(reportExitError);
+      event.preventDefault();
+      event.returnValue = "";
+    };
     this._exitSave = () => this._flushForExit();
     this._hiddenSave = () => { if (document.visibilityState === "hidden") this._excel.flush().catch(reportExitError); };
   }
@@ -94,7 +98,6 @@ export class MainWindow {
       user ? h("span", { class: "header-user" }, `👤  ${user.full_name}`) : null,
       this._buildThemeButton(),
       h("button", { type: "button", class: "btn-header", onClick: () => this._logout() }, "Cerrar sesión"),
-      h("button", { type: "button", class: "btn-header", title: "Guarda todo y cierra la aplicación", onClick: () => this._exitApp() }, "⏻  Salir"),
       this._clock);
   }
 
@@ -170,25 +173,6 @@ export class MainWindow {
     await this._excel.flush();
     this._stopWork();
     await wait(0);
-    this._resolve();
-  }
-
-  async _exitApp() {
-    const text = this._attendance.isRunning
-      ? "¿Salir de la aplicación?\n\nHay una lista en curso: se finalizará y se guardará antes de salir. Todo lo demás ya está guardado."
-      : "¿Salir de la aplicación?\n\nTodo lo que hizo ya está guardado.";
-    if (!(await askYesNo(text, APP_TITLE))) return;
-    try {
-      await this._excel.flush();
-      if (this._attendance.isRunning) await this._attendance.finishSession();
-    } catch (error) {
-      await showError(`No se pudo guardar todo antes de salir, por eso la aplicación sigue abierta.\n${error.message}`, APP_TITLE);
-      return;
-    }
-    this._stopWork();
-    window.close();
-    await wait(400);
-    await showInfo("Todo quedó guardado. Ya puede cerrar esta ventana o pestaña.", APP_TITLE);
     this._resolve();
   }
 }

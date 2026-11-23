@@ -186,17 +186,6 @@ test("flujo completo de la interfaz: cuenta → cursos → horario → lista →
     await sleep(20);
   });
 
-  await t.test("Salir de la aplicación usa el cuadro de la app, y «No» no cierra nada", async () => {
-    click(byText("button", "Salir"));
-    const dialog = await waitFor(() => document.querySelector("dialog.msgbox[open]"), "cuadro de salida");
-    assert.match(dialog.textContent, /¿Salir de la aplicación\?/);
-    assert.match(dialog.textContent, /ya está guardado/);
-    assert.doesNotMatch(dialog.querySelector(".dialog-actions").getAttribute("style") ?? "", /#fff|white/i);
-    click(byText("dialog.msgbox button", "No"));
-    await waitFor(() => !document.querySelector("dialog.msgbox[open]"), "cuadro cerrado");
-    assert.ok(byText("button", "Cerrar sesión"), "la sesión sigue abierta");
-  });
-
   await t.test("cerrar sesión devuelve el control", async () => {
     click(byText("button", "Cerrar sesión"));
     click(await waitFor(() => byText("dialog button", "Sí"), "confirmación de cerrar sesión"));

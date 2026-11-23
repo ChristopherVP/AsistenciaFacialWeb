@@ -345,7 +345,7 @@ Frames are processed on the device in WebAssembly, one of every two frames (~30 
 | **Biometric data** | Only **face embeddings** are stored (numeric vectors), never photos or video. They never leave the browser. |
 | **Consent** | Registering a face requires accepting a consent notice. |
 | **Local data** | All data lives in the browser's IndexedDB; whoever has access to that browser profile has access to the data. |
-| **Leave guard** | Inside an account, the window's ✕ button shows the browser's own «leave the app?» confirmation (the browser decides its text and look; the app cannot change them). If you confirm, pending work is saved anyway. For a confirmation in the app's own style use the header buttons **Cerrar sesión** and **⏻ Salir**: both ask «Everything you did is already saved», finish a running list, commit a half-edited sheet cell and only then leave. At the login screen nothing is asked. |
+| **Leave guard** | Inside an account, the window's red ✕ shows the browser's own «leave the app?» confirmation. Only the browser can draw it, so the app cannot change its text or look, nor replace it with its own dialog. The moment ✕ is pressed the app starts saving a half-edited sheet cell, and if you confirm it also finishes and saves a running list. For a confirmation in the app's own style use **Cerrar sesión**. At the login screen nothing is asked. |
 | **Excel formulas** | The evaluator checks the expression against a whitelist of characters and functions before evaluating it. |
 | **No secrets in code** | There are no keys, tokens or passwords in the source; there is no backend. |
 
@@ -436,7 +436,7 @@ Each course has one *book*:
 
 Other details:
 - The browser is asked for **persistent storage** so it does not discard the data when disk space is low.
-- **Saving on exit:** when the window is closed (the ✕ button) or reloaded, the app finishes what is pending the same way *Cerrar sesión* does: a running list is finished and saved, and a half-edited sheet cell is committed. Browsers do not guarantee that asynchronous work completes while a page unloads, so if a list is running and you want to be certain, choose *Cancelar* in the confirmation and use *Finalizar y guardar*. The **⏻ Salir** button does the same saving with the app's own dialog and then closes the window (installed app) or tells you it is safe to close the tab.
+- **Saving on exit:** when the window is closed (the ✕ button) or reloaded, the app finishes what is pending the same way *Cerrar sesión* does: a running list is finished and saved, and a half-edited sheet cell is committed. Browsers do not guarantee that asynchronous work completes while a page unloads, so if a list is running and you want to be certain, choose *Cancelar* in the confirmation and use *Finalizar y guardar*.
 - Tabs and windows of the app stay in sync through a `BroadcastChannel` (`af-courses`) and an internal subscription mechanism: changes made in the Excel tab appear immediately in *Cursos*, and lists taken appear in the sheet.
 - **Deleting a course also deletes its stored attendance**: download the Excel first if you need it.
 
